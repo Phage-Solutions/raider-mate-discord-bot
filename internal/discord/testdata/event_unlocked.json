@@ -1,0 +1,55 @@
+{
+  "title": "Heroic Nerub-ar Palace",
+  "description": "**Starts** \u003ct:1788292800:F\u003e (\u003ct:1788292800:R\u003e)\n**Signups close** \u003ct:1788177600:F\u003e (\u003ct:1788177600:R\u003e)\n**Difficulty** Heroic",
+  "color": 4094920,
+  "footer": {
+    "text": "3 in, 1 tentative, 1 out  |  event 0192f3c8-0000-7000-8000-000000000001"
+  },
+  "fields": [
+    {
+      "name": "🛡️ Tanks (2/2)",
+      "value": "`1.` Danthrax (offspec melee)\n`2.` Grimwall",
+      "inline": true
+    },
+    {
+      "name": "➕ Healers (1/4)",
+      "value": "`1.` Lightbringer",
+      "inline": true
+    },
+    {
+      "name": "⚔️ Melee (0/7)",
+      "value": "—",
+      "inline": true
+    },
+    {
+      "name": "🏹 Ranged (0/7)",
+      "value": "—",
+      "inline": true
+    },
+    {
+      "name": "​",
+      "value": "​",
+      "inline": true
+    },
+    {
+      "name": "​",
+      "value": "​",
+      "inline": true
+    },
+    {
+      "name": "Tentative (1)",
+      "value": "Mossheart",
+      "inline": true
+    },
+    {
+      "name": "Declined (1)",
+      "value": "Sunwell",
+      "inline": true
+    },
+    {
+      "name": "​",
+      "value": "​",
+      "inline": true
+    }
+  ]
+}

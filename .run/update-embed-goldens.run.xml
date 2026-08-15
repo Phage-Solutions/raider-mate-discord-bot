@@ -1,0 +1,20 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="update embed goldens" type="GoTestRunConfiguration" factoryName="Go Test">
+    <module name="raider-mate-discord-bot" />
+    <working_directory value="$PROJECT_DIR$/internal/discord" />
+    <kind value="DIRECTORY" />
+    <directory value="$PROJECT_DIR$/internal/discord" />
+    <filePath value="$PROJECT_DIR$/internal/discord" />
+    <framework value="gotest" />
+    <!--
+      Scoped to internal/discord because -update is that package's own test flag. Run
+      across the repo it would reach packages that never declared it, and those fail
+      with "flag provided but not defined".
+
+      Rewrites testdata/*.json. Read the diff before committing it: this rewrites the
+      files whether the change was intended or not.
+    -->
+    <parameters value="-update" />
+    <method v="2" />
+  </configuration>
+</component>

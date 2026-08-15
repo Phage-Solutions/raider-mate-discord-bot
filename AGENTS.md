@@ -24,18 +24,33 @@ load them by default.
 - No database driver, no ORM. All state lives behind the service API.
 - HTTP client against `raider-mate-service`.
 
+**One deliberate divergence from the service.** `raider-mate-service` reads no dotenv
+and leaves `.env` to its Makefile. This repo reads one, in `cmd/bot/dotenv.go`, because
+the bot is started from an IDE as often as from a terminal, and the alternatives were a
+marketplace plugin as a prerequisite or the Discord token in a tracked run
+configuration. A real environment variable always wins over the file, and a missing
+file is not an error, so containers and CI behave exactly as they did before.
+
 The author is experienced in Kotlin/Spring and new to Go. Write idiomatic Go, not Java
 in Go syntax. When an idiom differs from the JVM equivalent, note it in one line.
 
 ## Commands
 
-<!-- Fill these in as the repo takes shape. Exact commands matter more than prose. -->
-
 ```
 make run       # start the bot locally, pointed at a running raider-mate-service
+make register  # publish slash commands, then exit
 make test      # go test ./...
 make lint      # golangci-lint run
+make fmt       # gofmt -l -w .
+make docker    # build the image, rootless distroless
 ```
+
+Registration is separate from `run` because Discord allows 200 command creates per day
+per guild, and re-registering on every restart spends that during one afternoon. Run it
+when the command definitions change.
+
+Embed golden files live in `internal/discord/testdata`. Rewrite them with
+`go test ./internal/discord -update`, then read the diff before committing it.
 
 Always run `make test` and `make lint` before declaring work finished.
 
@@ -74,6 +89,7 @@ Violating these produces broken behaviour, not just untidy code.
 ## Structure
 
 ```
+cmd/bot            main, config from the environment, hand-wiring
 internal/discord   interaction handlers, embed rendering, component builders
 internal/client    typed HTTP client for raider-mate-service, incl. HATEOAS parsing
 ```

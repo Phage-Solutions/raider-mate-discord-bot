@@ -1,0 +1,85 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/discord"
+)
+
+func main() {
+	if err := run(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
+	// Registration is a flag rather than something startup does, because Discord
+	// allows 200 command creates per day per guild and a restart loop would eat that.
+	register := flag.Bool("register", false, "publish slash commands, then exit")
+	uploadIcons := flag.String("upload-icons", "", "publish every PNG in this directory as a class or spec emoji, then exit")
+	flag.Parse()
+
+	if err := loadDotEnv(dotEnvPath); err != nil {
+		return fmt.Errorf("loading %s: %w", dotEnvPath, err)
+	}
+
+	cfg, err := loadConfig()
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+
+	logger := newLogger(cfg.LogLevel)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	api := client.New(cfg.ServiceBaseURL, cfg.ServiceAPIKey)
+
+	bot, err := discord.New(discord.Options{
+		Token:        cfg.DiscordToken,
+		DevGuildID:   cfg.DevGuildID,
+		PollInterval: cfg.PollInterval,
+		API:          api,
+		Logger:       logger,
+	})
+	if err != nil {
+		return fmt.Errorf("building bot: %w", err)
+	}
+
+	if *register {
+		return bot.RegisterCommands(ctx)
+	}
+
+	if *uploadIcons != "" {
+		return bot.UploadIcons(ctx, *uploadIcons)
+	}
+
+	if err := bot.Start(ctx); err != nil {
+		return fmt.Errorf("starting bot: %w", err)
+	}
+	defer bot.Stop()
+
+	logger.Info("bot running", "dev_guild_id", cfg.DevGuildID)
+	<-ctx.Done()
+	// Hand the signals back to the runtime so a second Ctrl-C kills a hung shutdown.
+	stop()
+	logger.Info("shutting down")
+
+	return nil
+}
+
+func newLogger(level string) *slog.Logger {
+	var lvl slog.Level
+	if err := lvl.UnmarshalText([]byte(level)); err != nil {
+		lvl = slog.LevelInfo
+	}
+	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}))
+}

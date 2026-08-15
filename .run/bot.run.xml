@@ -1,0 +1,16 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="bot" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="raider-mate-discord-bot" />
+    <working_directory value="$PROJECT_DIR$" />
+    <kind value="PACKAGE" />
+    <package value="github.com/Phage-Solutions/raider-mate-discord-bot/cmd/bot" />
+    <directory value="$PROJECT_DIR$" />
+    <filePath value="$PROJECT_DIR$/cmd/bot/main.go" />
+    <!--
+      Configuration comes from .env, which the binary reads itself (cmd/bot/dotenv.go)
+      and which is gitignored, so no token is ever stored in this tracked file. A real
+      environment variable still wins over the file.
+    -->
+    <method v="2" />
+  </configuration>
+</component>

@@ -1,0 +1,29 @@
+{
+  "title": "Heroic Nerub-ar Palace",
+  "description": "**Starts** \u003ct:1788292800:F\u003e (\u003ct:1788292800:R\u003e)\n**Signups close** \u003ct:1788177600:F\u003e (\u003ct:1788177600:R\u003e)\n**Difficulty** Heroic",
+  "color": 4094920,
+  "footer": {
+    "text": "4 in  |  event 0192f3c8-0000-7000-8000-000000000001"
+  },
+  "fields": [
+    {
+      "name": "🛡️ Tanks (2/2)",
+      "value": "`1.` Danthrax (offspec melee)\n`2.` Grimwall",
+      "inline": true
+    },
+    {
+      "name": "➕ Healers (1/4)",
+      "value": "`1.` Mossheart",
+      "inline": true
+    },
+    {
+      "name": "🪑 Bench (1)",
+      "value": "`1.` Thornrend",
+      "inline": true
+    },
+    {
+      "name": "Worth knowing",
+      "value": "HEALER: 1 healer, suggestion for this roster is 4"
+    }
+  ]
+}
