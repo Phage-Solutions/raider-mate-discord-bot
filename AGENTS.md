@@ -85,6 +85,13 @@ Violating these produces broken behaviour, not just untidy code.
    local zone. Never format a time string bot-side.
 9. **Do not autocommit and push, at all.** Leave changes staged, uncommitted, for the
    author to review, commit, and push themselves.
+10. **Update CHANGELOG.md in the same change as any added feature, removal, or
+    bugfix.** Add the entry under `## [Unreleased]`, in the right Keep a Changelog
+    section (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`). The
+    release workflow reads the section matching the pushed tag as the GitHub Release
+    body; a tag with no matching section fails the release. Write for someone running
+    the bot, not for git history: state what changed in Discord-facing terms, and why
+    if it is not obvious from the what.
 
 ## Structure
 

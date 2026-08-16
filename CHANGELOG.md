@@ -12,23 +12,48 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-16
+
+Initial release: raid and dungeon events, multi-role signups, comp lock, and reminder
+delivery against `raider-mate-service`.
+
 ### Added
 
+- `/event raid create` and `/event dungeon create`: title, start time, signup
+  deadline, difficulty, and per-role signup counts for a raid.
+- `/character add` and `/character roles`, for registering a character and editing
+  which roles it can play.
+- `/comp show` and `/comp lock`. Both are slash commands rather than buttons, since a
+  message's components are the same for every viewer and a lock button could not be
+  gated on the lock link the way hard rule 6 requires; a command's ephemeral reply is
+  where that gating can honestly happen.
+- `/config channel`, `/config banner`, `/config mentions`, `/config timezone`, and
+  `/help`.
+- Event messages with signup buttons (Signup, Tentative, Decline, Late, Withdraw) and
+  role-select components, edited in place via the stored `message_id` and never
+  reposted.
 - `Absent` button on event messages. One click, no role menu, for a raider who is out
   for a stretch rather than declining this one raid.
-- `Late` button, which opens a modal for the arrival time. The time is read against the
-  raid's start, so `20:30` from someone answering at lunchtime means half an hour into
-  tonight's raid, and a time at or before the pull is refused.
-- Delivery of the service's `COMP_SLOT_DROPPED` notification, which names the comps a
-  raider's seat came out of after a lock.
+- `Late` button, which opens a modal for the arrival time. The time is read against
+  the raid's start, so `20:30` from someone answering at lunchtime means half an hour
+  into tonight's raid, and a time at or before the pull is refused.
+- Notification delivery from the service's outbox: claim-based polling plus a
+  Server-Sent Events stream, redialled after a five-second backoff on disconnect, so
+  nothing is missed while the connection is down. Covers `REMINDER_24H`,
+  `REMINDER_1H`, `SIGNUP_DEADLINE`, `COMP_NAG`, and `COMP_SLOT_DROPPED`, which names
+  the comps a raider's seat came out of after a lock.
+- `UploadIcons`, publishing every PNG in a directory as an application emoji named
+  after its file. Application emoji belong to the bot rather than a guild, so one
+  upload covers every server it is in, and a self-hoster running their own
+  application uploads their own set.
 - `allowed_statuses` is read off signup responses. The bot's buttons are message-wide
   and cannot be gated per viewer, so nothing here acts on it yet.
 
 ### Changed
 
 - Absent raiders get their own embed field and their own footer tally, counted apart
-  from declines. Late and Absent both read under the roster, as what raiders said about
-  themselves rather than as part of what the comp did with them.
+  from declines. Late and Absent both read under the roster, as what raiders said
+  about themselves rather than as part of what the comp did with them.
 - Event messages use two button rows. The five answers fill the first, Withdraw takes
   the second.
 - The signup-deadline summary names absences and still skips zeroes, now that the
