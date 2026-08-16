@@ -12,6 +12,8 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-16
+
 ### Fixed
 
 - A panic in an interaction handler no longer kills the bot. discordgo dispatches each
