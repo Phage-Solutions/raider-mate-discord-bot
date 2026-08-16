@@ -44,6 +44,19 @@ type LateRequestFiledPayload struct {
 	Status      SignupStatus `json:"status"`
 }
 
+// CompSlotDroppedPayload tells the raid lead a locked comp just lost someone. CompNames
+// is every comp the raider held a seat in, since a hole in the prog comp and a hole in
+// the farm comp are two different problems.
+//
+// Status is absent when the raider withdrew: the signup row is gone rather than
+// restated, and there is no status to name.
+type CompSlotDroppedPayload struct {
+	EventTitle  string        `json:"event_title"`
+	CharacterID string        `json:"character_id"`
+	Status      *SignupStatus `json:"status,omitempty"`
+	CompNames   []string      `json:"comp_names"`
+}
+
 // ClaimNotifications takes up to limit undelivered notifications across every guild
 // and marks them claimed, so a second poller gets a different batch.
 //

@@ -18,6 +18,10 @@ const (
 
 // SignupStatus is what a raider said about an event. Bench is deliberately absent: it
 // lives on the comp, not the signup, and the service dropped it from the enum.
+//
+// ABSENT and DECLINED are both a no, and the difference is scope: DECLINED answers this
+// event, ABSENT says the raider is out for a stretch. Both are the raider's to set.
+// NO_SHOW is the raid lead's alone, so the bot never sends it.
 type SignupStatus string
 
 const (
@@ -151,7 +155,13 @@ type Signup struct {
 	AssignedRole *Role             `json:"assigned_role,omitempty"`
 	LateUntil    *time.Time        `json:"late_until,omitempty"`
 	Note         *string           `json:"note,omitempty"`
-	Links        Links             `json:"_links"`
+	// AllowedStatuses is what the calling actor may write on this signup, empty for a
+	// caller who cannot act on it at all. The bot's signup buttons live on a message
+	// every viewer sees the same way, so it has nothing to gate on this; it is read so
+	// the contract is represented and a caller that does build a per-actor surface has
+	// the field without another round of API work.
+	AllowedStatuses []SignupStatus `json:"allowed_statuses,omitempty"`
+	Links           Links          `json:"_links"`
 }
 
 // LateRequest is what a signup becomes once the deadline has passed. The player's
@@ -215,6 +225,10 @@ const (
 	// RosterUpdated carries no message. A raider's cached gear or score moved, so the
 	// event message is showing stale numbers and needs redrawing.
 	RosterUpdated NotificationKind = "ROSTER_UPDATED"
+	// CompSlotDropped is a raider leaving the assignment pool after a comp was locked.
+	// The service takes their slot with the write; the raid lead is told rather than
+	// left to notice a hole (design.md section 4.3).
+	CompSlotDropped NotificationKind = "COMP_SLOT_DROPPED"
 )
 
 // NotificationTarget is who receives it: one raider by DM, a channel post mentioning

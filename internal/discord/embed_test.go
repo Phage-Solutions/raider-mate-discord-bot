@@ -146,6 +146,43 @@ func TestEventEmbedOmitsEmptyCategories(t *testing.T) {
 	}
 }
 
+// A planned absence is its own field and its own tally. Folding it into "out" would
+// tell a raid lead four people declined this raid when half the roster is away.
+func TestAnAbsentRaiderGetsTheirOwnFieldAndTally(t *testing.T) {
+	view := EventView{
+		Event: testEvent(t, client.CompTemplate{Tanks: intp(2)}),
+		Signups: []client.Signup{
+			signup("Grimwall", client.StatusConfirmed, client.RoleTank),
+			signup("Sunwell", client.StatusDeclined, client.RoleRanged),
+			signup("Thornrend", client.StatusAbsent, client.RoleMelee),
+		},
+	}
+	embed := BuildEventEmbed(view)
+
+	var found bool
+	for _, field := range embed.Fields {
+		if strings.HasPrefix(field.Name, "Absent") {
+			found = true
+			if !strings.Contains(field.Name, "(1)") {
+				t.Errorf("field name = %q, want a count of 1", field.Name)
+			}
+			if !strings.Contains(field.Value, "Thornrend") {
+				t.Errorf("field value = %q, want Thornrend listed", field.Value)
+			}
+		}
+	}
+	if !found {
+		t.Errorf("fields = %+v, want an Absent field", embed.Fields)
+	}
+
+	if !strings.Contains(embed.Footer.Text, "1 absent") {
+		t.Errorf("footer = %q, want the absence counted apart from the decline", embed.Footer.Text)
+	}
+	if !strings.Contains(embed.Footer.Text, "1 out") {
+		t.Errorf("footer = %q, want the decline still counted as out", embed.Footer.Text)
+	}
+}
+
 func TestFlexRaidersCarryAMarkerAndSingleRoleRaidersDoNot(t *testing.T) {
 	// summary ranks the roles in the order given, so tank is this raider's main.
 	flex := raiderName(nil, summary("Danthrax", client.RoleTank, client.RoleMelee), client.RoleTank)

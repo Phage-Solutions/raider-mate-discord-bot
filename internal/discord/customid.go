@@ -14,6 +14,13 @@ const (
 	ActionSignup    Action = "signup"
 	ActionTentative Action = "tentative"
 	ActionDecline   Action = "decline"
+	// ActionAbsent is "I am out for a while", wider than a decline of this one event.
+	ActionAbsent Action = "absent"
+	// ActionLate opens the arrival-time modal rather than writing anything. LATE
+	// without a late_until is a status a raid lead cannot act on, and a modal is the
+	// only control that can ask for one.
+	ActionLate      Action = "late"
+	ActionLateModal Action = "latemodal"
 	ActionWithdraw  Action = "withdraw"
 	// ActionRoles is the ephemeral multi-select coming back with the roles a raider
 	// picked. It carries the character as well as the event, because the select is

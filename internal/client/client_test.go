@@ -163,6 +163,36 @@ func TestASignupInsideTheDeadlineComesBackAsASignup(t *testing.T) {
 	}
 }
 
+// The service says which statuses this caller may write. Dropping the field on the
+// floor would leave a caller with a per-actor surface guessing, and guessing at what
+// the API allows is what hard rule 5 forbids.
+func TestASignupCarriesTheStatusesTheCallerMayWrite(t *testing.T) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, http.StatusOK, Signup{
+			ID: "s1", CharacterID: "c1", Status: StatusAbsent,
+			AllowedStatuses: []SignupStatus{
+				StatusConfirmed, StatusTentative, StatusDeclined, StatusLate, StatusAbsent,
+			},
+		})
+	})
+
+	result, err := c.Signup(context.Background(), testActor(), "e1", "c1",
+		WriteSignup{Status: StatusAbsent})
+	if err != nil {
+		t.Fatalf("writing signup: %v", err)
+	}
+
+	got := result.Signup.AllowedStatuses
+	if len(got) != 5 {
+		t.Fatalf("allowed statuses = %v, want the five a player may write", got)
+	}
+	for _, status := range got {
+		if status == StatusNoShow {
+			t.Errorf("allowed statuses = %v, want NO_SHOW withheld from a player", got)
+		}
+	}
+}
+
 func TestLockingAManualCompIsNotAGenericFailure(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, http.StatusConflict, map[string]string{"error": "comp is manual; convert it before locking"})

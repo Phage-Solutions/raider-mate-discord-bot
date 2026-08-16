@@ -304,9 +304,9 @@ func statusFields(signups []client.Signup) []*discordgo.MessageEmbedField {
 			continue
 		}
 		switch s.Status {
-		case client.StatusLate, client.StatusTentative, client.StatusDeclined:
+		case client.StatusLate, client.StatusTentative, client.StatusDeclined, client.StatusAbsent:
 			late[s.Status] = append(late[s.Status], lateName(s))
-		case client.StatusConfirmed, client.StatusAbsent, client.StatusNoShow:
+		case client.StatusConfirmed, client.StatusNoShow:
 		}
 	}
 
@@ -318,6 +318,9 @@ func statusFields(signups []client.Signup) []*discordgo.MessageEmbedField {
 		{client.StatusLate, "Late"},
 		{client.StatusTentative, "Tentative"},
 		{client.StatusDeclined, "Declined"},
+		// Last because it is the least urgent to read: a planned absence is settled,
+		// where a tentative is still a question the raid lead has to chase.
+		{client.StatusAbsent, "Absent"},
 	} {
 		names := late[entry.Status]
 		if len(names) == 0 {
@@ -351,7 +354,7 @@ func advisoryField(advisories []client.Advisory) *discordgo.MessageEmbedField {
 }
 
 func footerText(v EventView) string {
-	var confirmed, tentative, declined int
+	var confirmed, tentative, declined, absent int
 	for _, s := range v.Signups {
 		switch s.Status {
 		case client.StatusConfirmed, client.StatusLate:
@@ -360,7 +363,9 @@ func footerText(v EventView) string {
 			tentative++
 		case client.StatusDeclined:
 			declined++
-		case client.StatusAbsent, client.StatusNoShow:
+		case client.StatusAbsent:
+			absent++
+		case client.StatusNoShow:
 		}
 	}
 	tally := fmt.Sprintf("%d in", confirmed)
@@ -369,6 +374,11 @@ func footerText(v EventView) string {
 	}
 	if declined > 0 {
 		tally += fmt.Sprintf(", %d out", declined)
+	}
+	// Counted apart from "out" on purpose: four declines on one raid is a scheduling
+	// problem, four absences is half the roster on holiday.
+	if absent > 0 {
+		tally += fmt.Sprintf(", %d absent", absent)
 	}
 
 	// The event id rides in the footer because the comp commands take it as an argument

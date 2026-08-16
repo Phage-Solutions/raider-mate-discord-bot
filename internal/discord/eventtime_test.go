@@ -155,3 +155,34 @@ func TestASoonRaidKeepsSignupsOpenUntilItStarts(t *testing.T) {
 		t.Errorf("deadline = %s, want the start time %s", got, startsAt)
 	}
 }
+
+// The late modal anchors the parse on the raid's start, not on now. A raider answering
+// at lunchtime who types "20:30" means half an hour into tonight's raid; anchored on
+// now they would get half past eight and a late_until before the pull.
+func TestAnArrivalTimeIsReadAgainstTheRaidStartNotTheClock(t *testing.T) {
+	startsAt := time.Date(2026, time.September, 1, 20, 0, 0, 0, time.UTC)
+
+	got, err := parseEventTime("20:30", startsAt, time.UTC)
+	if err != nil {
+		t.Fatalf("parseEventTime() error = %v", err)
+	}
+	want := time.Date(2026, time.September, 1, 20, 30, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("arrival = %s, want %s", got, want)
+	}
+}
+
+// A raid starting at 22:00 and a raider arriving at 01:00 is the next morning, not
+// twenty-one hours before the pull.
+func TestAnArrivalTimeAfterMidnightLandsOnTheFollowingDay(t *testing.T) {
+	startsAt := time.Date(2026, time.September, 1, 22, 0, 0, 0, time.UTC)
+
+	got, err := parseEventTime("01:00", startsAt, time.UTC)
+	if err != nil {
+		t.Fatalf("parseEventTime() error = %v", err)
+	}
+	want := time.Date(2026, time.September, 2, 1, 0, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Errorf("arrival = %s, want %s", got, want)
+	}
+}

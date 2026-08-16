@@ -6,12 +6,16 @@ import (
 	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
 )
 
-// eventButtons are the controls on an event message. All four are available to
+// eventButtons are the controls on an event message. All six are available to
 // everyone who can see the message, which is why they can live here: a message's
 // components are the same for every viewer, so anything that has to be gated per
-// caller is a slash command with an ephemeral reply instead.
+// caller is a slash command with an ephemeral reply instead. That is also why the
+// signup response's allowed_statuses does not reach this function: there is no viewer
+// to compute it for.
 //
-// Four buttons fit one row comfortably, leaving a second row free.
+// Discord caps a row at five and refuses the whole message rather than the extra
+// button, so the answers fill the first row and Withdraw takes the second. Withdraw is
+// the one that moves: it is not an answer, it is taking an answer back.
 func eventButtons(eventID string) []discordgo.MessageComponent {
 	return []discordgo.MessageComponent{
 		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
@@ -28,11 +32,25 @@ func eventButtons(eventID string) []discordgo.MessageComponent {
 				CustomID: CustomID{Action: ActionTentative, EventID: eventID}.String(),
 			},
 			discordgo.Button{
+				Label:    "Late",
+				Style:    discordgo.SecondaryButton,
+				Emoji:    &discordgo.ComponentEmoji{Name: "🕒"},
+				CustomID: CustomID{Action: ActionLate, EventID: eventID}.String(),
+			},
+			discordgo.Button{
 				Label:    "Decline",
 				Style:    discordgo.DangerButton,
 				Emoji:    &discordgo.ComponentEmoji{Name: "❌"},
 				CustomID: CustomID{Action: ActionDecline, EventID: eventID}.String(),
 			},
+			discordgo.Button{
+				Label:    "Absent",
+				Style:    discordgo.SecondaryButton,
+				Emoji:    &discordgo.ComponentEmoji{Name: "🌙"},
+				CustomID: CustomID{Action: ActionAbsent, EventID: eventID}.String(),
+			},
+		}},
+		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Withdraw",
 				Style:    discordgo.SecondaryButton,

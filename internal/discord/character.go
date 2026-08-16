@@ -51,6 +51,8 @@ func (b *Bot) onModalSubmit(ctx context.Context, i *discordgo.InteractionCreate)
 	switch id.Action {
 	case ActionCharModal:
 		b.registerCharacter(ctx, i, id.EventID)
+	case ActionLateModal:
+		b.submitLate(ctx, i, id.EventID)
 	default:
 		b.logger.WarnContext(ctx, "unrouted modal", "action", id.Action)
 	}

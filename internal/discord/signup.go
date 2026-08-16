@@ -31,6 +31,10 @@ func (b *Bot) onComponent(ctx context.Context, i *discordgo.InteractionCreate) {
 		b.setStatus(ctx, i, id.EventID, client.StatusTentative)
 	case ActionDecline:
 		b.setStatus(ctx, i, id.EventID, client.StatusDeclined)
+	case ActionAbsent:
+		b.setStatus(ctx, i, id.EventID, client.StatusAbsent)
+	case ActionLate:
+		b.openLateModal(ctx, i, id.EventID)
 	case ActionWithdraw:
 		b.withdraw(ctx, i, id.EventID)
 	case ActionRoles:
@@ -39,9 +43,108 @@ func (b *Bot) onComponent(ctx context.Context, i *discordgo.InteractionCreate) {
 		b.openCharacterModalFor(ctx, i, id.EventID)
 	case ActionEventMentions:
 		b.submitEventMentions(ctx, i)
-	case ActionCharModal:
+	case ActionCharModal, ActionLateModal:
 		b.logger.WarnContext(ctx, "component carried a modal action", "action", id.Action)
 	}
+}
+
+// fieldLateUntil is the arrival time on the late modal.
+const fieldLateUntil = "late_until"
+
+// openLateModal asks when the raider will get there. LATE without a late_until is a
+// status a raid lead cannot act on, and no single click can supply one, so this is the
+// one signup control that opens a modal.
+//
+// It responds directly rather than deferring, and calls no API first: Discord refuses
+// to open a modal in reply to a deferred interaction (hard rule 1's stated exception).
+// The cost is that a raider with no characters registered only finds out on submit.
+func (b *Bot) openLateModal(ctx context.Context, i *discordgo.InteractionCreate, eventID string) {
+	err := b.session.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: CustomID{Action: ActionLateModal, EventID: eventID}.String(),
+			Title:    "Running late",
+			Components: []discordgo.MessageComponent{
+				textInputRow(fieldLateUntil, "When will you get there?", "20:30", true),
+			},
+		},
+	})
+	if err != nil {
+		b.logger.ErrorContext(ctx, "opening late modal", "error", err)
+	}
+}
+
+// submitLate writes the LATE signup with the arrival time the raider typed.
+func (b *Bot) submitLate(ctx context.Context, i *discordgo.InteractionCreate, eventID string) {
+	actor, err := actorFrom(i)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "reading actor", "error", err)
+		return
+	}
+	if err := b.deferEphemeral(i); err != nil {
+		b.logger.ErrorContext(ctx, "deferring late submit", "error", err)
+		return
+	}
+
+	settings, err := b.api.GuildSettings(ctx, actor)
+	if err != nil {
+		b.fail(ctx, i, "reading guild settings", err)
+		return
+	}
+	loc, err := guildLocation(settings.Timezone)
+	if err != nil {
+		b.editOrLog(ctx, i, "This server's timezone is not one Go recognises. An admin can fix it with `/config timezone`.")
+		return
+	}
+
+	event, err := b.api.Event(ctx, actor, eventID)
+	if err != nil {
+		b.fail(ctx, i, "reading event", err)
+		return
+	}
+
+	// Anchored on the raid's start rather than on now: someone answering at lunchtime
+	// who types "20:30" means half an hour into tonight's raid, and parseEventTime
+	// reads a bare clock time as the next one after the anchor it is given.
+	raw := modalFields(i.ModalSubmitData())[fieldLateUntil]
+	lateUntil, err := parseEventTime(raw, event.StartsAt, loc)
+	if err != nil {
+		b.editOrLog(ctx, i, cannotReadTime("arrival time", settings.Timezone))
+		return
+	}
+	if !lateUntil.After(event.StartsAt) {
+		b.editOrLog(ctx, i, "That is not after the raid starts, so you are not late. Use `Sign up` instead.")
+		return
+	}
+
+	characters, err := b.api.UserCharacters(ctx, actor, actor.DiscordID)
+	if err != nil {
+		b.fail(ctx, i, "listing characters", err)
+		return
+	}
+	if len(characters) == 0 {
+		const invite = "You have no characters registered yet, so there is nothing to answer with."
+		if err := b.edit(i, invite, addCharacterButton(eventID)); err != nil {
+			b.logger.ErrorContext(ctx, "offering registration", "error", err)
+		}
+		return
+	}
+
+	result, err := b.api.Signup(ctx, actor, eventID, pickMain(characters).ID,
+		client.WriteSignup{Status: client.StatusLate, LateUntil: &lateUntil})
+	if err != nil {
+		b.fail(ctx, i, "writing signup", err)
+		return
+	}
+
+	message := signupConfirmation(result, nil)
+	if !result.Filed() {
+		message = "Noted: late, from " + discordTime(lateUntil.Unix(), "t") + "."
+	}
+	if err := b.edit(i, message, nil); err != nil {
+		b.logger.ErrorContext(ctx, "confirming late signup", "error", err)
+	}
+	b.embeds.schedule(actor, eventID)
 }
 
 // startSignup opens the role select for the raider's character, or sends them down the
@@ -153,8 +256,8 @@ func (b *Bot) submitRoles(ctx context.Context, i *discordgo.InteractionCreate, e
 	b.embeds.schedule(actor, eventID)
 }
 
-// setStatus is the one-click path: tentative and decline need no role menu, since
-// neither puts anyone in the raid.
+// setStatus is the one-click path: tentative, decline, and absent need no role menu,
+// since none of them puts anyone in the raid.
 func (b *Bot) setStatus(ctx context.Context, i *discordgo.InteractionCreate, eventID string, status client.SignupStatus) {
 	actor, err := actorFrom(i)
 	if err != nil {

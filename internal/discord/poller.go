@@ -193,15 +193,34 @@ func notificationText(n client.Notification) (string, error) {
 		return fmt.Sprintf("Someone wants in on **%s** after the deadline, as %s. It is waiting in the dashboard.",
 			p.EventTitle, strings.ToLower(string(p.Status))), nil
 
+	case client.CompSlotDropped:
+		p, err := client.DecodePayload[client.CompSlotDroppedPayload](n)
+		if err != nil {
+			return "", err
+		}
+		// No status means the signup was withdrawn rather than changed, and there is
+		// nothing to name. Saying "is declined" there would be the wrong sentence.
+		answer := "has withdrawn from"
+		if p.Status != nil {
+			answer = "is " + strings.ToLower(string(*p.Status)) + " for"
+		}
+		return fmt.Sprintf("A raider %s **%s** and has come out of %s. Re-lock when you are ready.",
+			answer, p.EventTitle, compList(p.CompNames)), nil
+
 	default:
 		return "", fmt.Errorf("unknown notification kind %q", n.Kind)
 	}
 }
 
+// countSummary still skips a zero even though the service now sends a key for every
+// status: "4 confirmed, 0 late, 0 tentative, 0 declined, 0 absent" is a worse sentence
+// than "4 confirmed". NO_SHOW is left out because it is decided after the night, not
+// at the signup deadline this message reports on.
 func countSummary(counts map[client.SignupStatus]int) string {
 	parts := make([]string, 0, len(counts))
 	for _, status := range []client.SignupStatus{
-		client.StatusConfirmed, client.StatusLate, client.StatusTentative, client.StatusDeclined,
+		client.StatusConfirmed, client.StatusLate, client.StatusTentative,
+		client.StatusDeclined, client.StatusAbsent,
 	} {
 		if counts[status] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", counts[status], strings.ToLower(string(status))))
@@ -211,6 +230,20 @@ func countSummary(counts map[client.SignupStatus]int) string {
 		return "Nobody answered"
 	}
 	return strings.Join(parts, ", ")
+}
+
+// compList reads comp names as a sentence, since this lands in a channel rather than a
+// table. The empty case cannot come from the service, which only queues the
+// notification when it emptied something, but a nil slice would slice out of range.
+func compList(names []string) string {
+	switch len(names) {
+	case 0:
+		return "the comp"
+	case 1:
+		return names[0]
+	default:
+		return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+	}
 }
 
 func mentions(roleIDs []string) string {

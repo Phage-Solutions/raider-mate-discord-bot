@@ -175,10 +175,15 @@ The embed is the product's face. Twenty-five people look at it every raid night.
 
 [Field: Tentative] 2
 [Field: Declined]  4
+[Field: Absent]    1
 
-[Footer]           18 signed up | event 0192f3c8-...
-[Buttons]          [Sign up] [Tentative] [Decline] [Withdraw]
+[Footer]           18 in, 2 tentative, 4 out, 1 absent | event 0192f3c8-...
+[Buttons]          [Sign up] [Tentative] [Late] [Decline] [Absent]
+                   [Withdraw]
 ```
+
+Late and Absent are fields under the roster, not in it. They read as what raiders said
+about themselves, after what the comp did with them.
 
 The `:F` style renders the full date and time, so the date is not a separate line. The
 event id is in the footer because `/comp show` and `/comp lock` take it as an argument
@@ -239,8 +244,8 @@ This matters more than it looks, because two different sources feed one embed:
 - **Tanks, Healers, Melee, Ranged, Bench** come from the **comp**, not from signup
   statuses. Bench membership lives on `comp_slots.is_bench` and is decided fresh by
   every lock.
-- **Late, Tentative, Declined** come from **signup status**, which is what the raider
-  self-reported.
+- **Late, Tentative, Declined, Absent** come from **signup status**, which is what the
+  raider self-reported.
 
 Signup rows and comp slots both carry their character inline, name and role menu
 included, so the embed builder needs no roster lookup of its own and takes no roster
@@ -284,8 +289,9 @@ These are platform limits, not preferences, and the design has to live inside th
   approach this. Truncate with "and 4 more" and link to the dashboard rather than
   letting the embed fail to render.
 - **6000 characters total across the embed.** Same concern, checked before send.
-- **5 buttons per action row, 5 rows per message.** The four signup buttons fit one
-  row comfortably, leaving room for raid lead controls on a second row.
+- **5 buttons per action row, 5 rows per message.** The five answers fill the first row
+  exactly and Withdraw takes the second, since it is not an answer but a way to take one
+  back. A sixth in one row is refused as the whole message, not as the extra button.
 - **Select menus allow 25 options.** Relevant for character selection when a user has
   many alts, not for role selection.
 
@@ -347,16 +353,29 @@ dialog, since the action is trivially reversible by signing up again. Embed upda
 If a locked comp already assigned the raider, withdrawing notifies the raid lead
 rather than silently reshuffling. The bot does not re-run the assigner.
 
-### 4.4 Tentative and Decline
+### 4.4 Tentative, Decline, and Absent
 
-Single click each. Decline asks for no reason; an optional note can come later from
-the dashboard. Both update the embed immediately.
+Single click each. None asks for a reason; an optional note can come later from the
+dashboard. All three update the embed immediately.
+
+`Absent` and `Decline` are both a no, and the difference is scope. `Decline` answers
+this raid. `Absent` says the raider is away for a stretch, so it is counted apart in
+the footer: four declines on one night is a scheduling problem, four absences is half
+the roster on holiday. Both are the raider's to set. `NO_SHOW` is the raid lead's
+alone and the bot never sends it.
 
 ### 4.5 Late
 
-Not a button. `Late` is set by picking `Tentative` and then supplying a time, or via a
-follow-up ephemeral prompt after signup. The distinction matters: `LATE` carries a
-`late_until` timestamp, so it needs input that a single button cannot provide.
+A button, and the only signup control that opens a modal. `LATE` carries a `late_until`
+timestamp, which is the thing that makes the status actionable, and no click can supply
+one. The button therefore responds with the modal directly rather than deferring, which
+is hard rule 1's stated exception. The cost is that a raider with no characters
+registered only learns so on submit.
+
+The arrival time is parsed with the same reader as a raid start time, anchored on the
+event's `starts_at` rather than on now. A raider answering at lunchtime who types
+`20:30` means half an hour into tonight's raid, and `01:00` against a 22:00 pull means
+the following morning. A time at or before the start is refused: that is not late.
 
 ### 4.6 Comp lock
 
@@ -413,6 +432,7 @@ ticker and delivers. It reads no clock and no schedule of its own.
 | 24h before | Undecided only | Nudge to sign up. Never ping people who already responded. |
 | 1h before | Confirmed roster | Their assigned role, invite reminder. |
 | Signup deadline | Raid lead | Signups locked, comp needs finalising. |
+| Seat given up | Raid lead | A raider left the pool or withdrew after a lock. Names the comps that lost a seat. |
 | 2h before, comp unlocked | Raid lead | Nag. |
 
 All reminders are DMs. **DMs can fail** if the user has them closed; the bot must
@@ -602,13 +622,14 @@ Everything above is the target. v0.1 is narrower, and this is what is built:
 
 - `/raid create`, `/dungeon create`, `/character add`, `/character roles`,
   `/config channel`, `/config timezone`, `/config mentions`, `/config banner`, `/help`
-- Signup, Tentative, Decline, Withdraw buttons
+- Signup, Tentative, Late, Decline, Absent, Withdraw buttons, Late via a modal
 - Multi-role select, ordered by priority, existing picks pre-ticked
 - Event embed with role fields and counts, redrawn on a one-second debounce
 - `/comp show` and `/comp lock` on AUTO comps, with advisories and reasons surfaced
-- All five notification kinds delivered from the outbox
+- Every notification kind delivered from the outbox
 
-Deferred: `/event edit`, `/event cancel`, `/absence`, `/audit`,
-`/roster`, `/character remove`, waitlist promotion, Late handling and the late-request
-approve and reject surface, alt selection when a user has multiple characters (v0.1
-uses the main), and any manual comp editing from Discord.
+Deferred: `/event edit`, `/event cancel`, `/audit`, `/absence` (the button answers one
+raid; the command would answer a date range across many),
+`/roster`, `/character remove`, waitlist promotion, the late-request approve and reject
+surface, alt selection when a user has multiple characters (v0.1 uses the main), and any
+manual comp editing from Discord.
