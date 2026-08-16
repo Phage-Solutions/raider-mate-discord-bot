@@ -1,6 +1,9 @@
 package discord
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
@@ -94,6 +97,75 @@ func roleSelect(eventID, characterID string, current []client.RoleChoice) []disc
 			},
 		}},
 	}
+}
+
+// maxSelectOptions is Discord's cap on a select menu. A raider with more alts than this
+// loses the tail of the list, which is why the main sorts first: the option that must
+// never be the one cut.
+const maxSelectOptions = 25
+
+// characterSelect asks which character the raider is acting as. then is what happens to
+// the one they pick, and arg carries the single extra value that flow needs, since the
+// pick arrives as a fresh interaction with no memory of the one before it.
+//
+// Unlike roleSelect, no option is ticked by default. Discord sends nothing when a
+// selection does not change, so a pre-ticked option is one the raider cannot choose.
+func characterSelect(eventID string, then Action, arg string, characters []client.Character) []discordgo.MessageComponent {
+	sorted := mainFirst(characters)
+	if len(sorted) > maxSelectOptions {
+		sorted = sorted[:maxSelectOptions]
+	}
+
+	options := make([]discordgo.SelectMenuOption, 0, len(sorted))
+	for _, c := range sorted {
+		options = append(options, discordgo.SelectMenuOption{
+			Label:       c.Name + "-" + c.Realm,
+			Value:       c.ID,
+			Description: characterDescription(c),
+		})
+	}
+
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:    CustomID{Action: ActionPick, EventID: eventID, Then: then, Arg: arg}.String(),
+				Placeholder: "Which character?",
+				MinValues:   ptr(1),
+				MaxValues:   1,
+				Options:     options,
+			},
+		}},
+	}
+}
+
+// characterDescription is the grey line under an option: main or alt, and the class once
+// the Raider.IO sync has filled it in.
+func characterDescription(c client.Character) string {
+	kind := "Alt"
+	if c.IsMain {
+		kind = "Main"
+	}
+	if c.Class == nil || *c.Class == "" {
+		return kind
+	}
+	return kind + " - " + *c.Class
+}
+
+// mainFirst orders a raider's characters the way they think of them: the main, then the
+// alts alphabetically. Returns a copy, since the caller's slice came off an API response
+// other code is still reading.
+func mainFirst(characters []client.Character) []client.Character {
+	sorted := slices.Clone(characters)
+	slices.SortStableFunc(sorted, func(a, b client.Character) int {
+		if a.IsMain != b.IsMain {
+			if a.IsMain {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Name, b.Name)
+	})
+	return sorted
 }
 
 // orderByPriority puts a raider's existing picks at the top in the order they ranked

@@ -139,6 +139,11 @@ var commands = []*discordgo.ApplicationCommand{
 				Description: "Edit which roles your character can play",
 				Type:        discordgo.ApplicationCommandOptionSubCommand,
 			},
+			{
+				Name:        "main",
+				Description: "Choose which of your characters is your main",
+				Type:        discordgo.ApplicationCommandOptionSubCommand,
+			},
 		},
 	},
 	// Raid-lead controls are slash commands rather than buttons on the event message.
@@ -267,6 +272,8 @@ func (b *Bot) onCommand(ctx context.Context, i *discordgo.InteractionCreate) {
 		b.openCharacterModal(ctx, i)
 	case "character roles":
 		b.startRoleEdit(ctx, i)
+	case "character main":
+		b.startMainSwitch(ctx, i)
 	case "comp show":
 		b.showComp(ctx, i, data.Options[0].Options[0].StringValue())
 	case "comp lock":
@@ -292,6 +299,7 @@ func (b *Bot) showHelp(i *discordgo.InteractionCreate) {
 		"`/dungeon create` does the same for a Mythic+ group.\n" +
 		"`/character add` registers a character. You need one before you can sign up.\n" +
 		"`/character roles` sets which roles that character can play, in the order you would rather play them.\n" +
+		"`/character main` moves the main flag to another of your characters.\n" +
 		"`/comp show <event id>` shows the current comp.\n" +
 		"`/comp lock <event id>` runs the assigner. Raid leads only.\n" +
 		"`/config channel` picks where event messages get posted. Server admins only.\n" +

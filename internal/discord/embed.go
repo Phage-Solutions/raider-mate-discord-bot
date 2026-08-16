@@ -239,7 +239,7 @@ func unlockedRoleFields(v EventView) []*discordgo.MessageEmbedField {
 		// footer, which is worse than an untidy field.
 		roles := sortedByPriority(s.Character.Roles)
 		if len(roles) == 0 {
-			unassigned = append(unassigned, s.Character.Name)
+			unassigned = append(unassigned, s.Character.Name+altMarker(s.Character.IsMain))
 			continue
 		}
 
@@ -398,11 +398,40 @@ func raiderName(icons IconSet, character *client.CharacterSummary, playing clien
 		// signup read and the roster read. Saying so beats inventing a name.
 		return "unknown raider"
 	}
-	name := icons.Markup(character.Class, character.Spec) + character.Name + itemLevel(character)
+	name := icons.Markup(character.Class, character.Spec) + raiderioLink(character) + itemLevel(character) + altMarker(character.IsMain)
 	if marker := flexMarker(character.Roles, playing); marker != "" {
 		return name + " " + marker
 	}
 	return name
+}
+
+// raiderioLink makes a roster name clickable. Only the name is wrapped, so the item
+// level and the markers after it stay outside the link and what a raider clicks is the
+// word that names them.
+//
+// A masked link renders inside an embed, unlike in ordinary message content, but it is
+// not free: the whole URL counts against the 1024-character field cap, around fifty
+// characters per raider, so a deep column truncates sooner than it did before.
+//
+// The URL is absent against a service older than 0.2.0, and a plain name is the answer
+// rather than one rebuilt here. Hard rule 5 says read the contract instead of assuming
+// it, and the summary carries no region to rebuild the URL from anyway.
+func raiderioLink(character *client.CharacterSummary) string {
+	if character.RaiderIOURL == "" {
+		return character.Name
+	}
+	return "[" + character.Name + "](" + character.RaiderIOURL + ")"
+}
+
+// altMarker says the raider is not on their main. Bracketed rather than parenthesised so
+// it does not read as another role marker sitting next to "(offspec melee)", and worth
+// showing because a raid lead reading a roster wants to know whose gear and logs the name
+// they recognise does not apply to.
+func altMarker(isMain bool) string {
+	if isMain {
+		return ""
+	}
+	return " [Alt]"
 }
 
 // flexMarker says what else a raider brings, and which way round it is.
@@ -445,7 +474,7 @@ func itemLevel(character *client.CharacterSummary) string {
 // in their reader's zone. "I will be twenty minutes late" is only useful if the raid
 // lead can act on it.
 func lateName(s client.Signup) string {
-	name := s.Character.Name
+	name := s.Character.Name + altMarker(s.Character.IsMain)
 	if s.Status == client.StatusLate && s.LateUntil != nil {
 		return name + " (from " + discordTime(s.LateUntil.Unix(), "t") + ")"
 	}

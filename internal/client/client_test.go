@@ -204,6 +204,41 @@ func TestLockingAManualCompIsNotAGenericFailure(t *testing.T) {
 	}
 }
 
+// /character main is a PATCH carrying one field. The service demotes the previous main
+// itself, so the bot promotes and never writes a second request to clear the old flag.
+func TestSettingAMainPatchesTheCharacter(t *testing.T) {
+	var (
+		method string
+		path   string
+		body   map[string]any
+	)
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		method, path = r.Method, r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding request: %v", err)
+		}
+		writeJSON(t, w, http.StatusOK, Character{ID: "c1", Name: "Johalic", Realm: "Silvermoon", IsMain: true})
+	})
+
+	got, err := c.SetCharacterMain(context.Background(), testActor(), "c1", true)
+	if err != nil {
+		t.Fatalf("setting main: %v", err)
+	}
+
+	if method != http.MethodPatch {
+		t.Errorf("method = %s, want PATCH", method)
+	}
+	if path != "/api/characters/c1" {
+		t.Errorf("path = %s, want /api/characters/c1", path)
+	}
+	if body["is_main"] != true {
+		t.Errorf("body = %v, want is_main true", body)
+	}
+	if !got.IsMain || got.Name != "Johalic" {
+		t.Errorf("character = %+v, want the promoted character parsed back", got)
+	}
+}
+
 func TestA404IsReportedAsNotFound(t *testing.T) {
 	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(t, w, http.StatusNotFound, map[string]string{"error": "character not found"})

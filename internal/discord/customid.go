@@ -33,6 +33,12 @@ const (
 	ActionCharModal    Action = "charmodal"
 	// ActionEventMentions is the role picker behind /config mentions coming back.
 	ActionEventMentions Action = "mentions"
+	// ActionPick is the character select shown to a raider with more than one
+	// character. The chosen character comes back in the select's values, so the
+	// custom_id carries the action waiting on it rather than a character id.
+	ActionPick Action = "pick"
+	// ActionSetMain is /character main coming back from the picker.
+	ActionSetMain Action = "setmain"
 )
 
 // noEvent stands in for an absent event id. Some flows have no event behind them,
@@ -64,8 +70,14 @@ type CustomID struct {
 	Action Action
 	// EventID is the event the component sits on.
 	EventID string
-	// CharacterID is set only on the actions that name one character.
+	// CharacterID is set only on the actions that name one character. A picker names
+	// none yet, so it carries Then and Arg in the same position instead.
 	CharacterID string
+	// Then is the flow resuming once the raider has picked a character. ActionPick only.
+	Then Action
+	// Arg is the one value a resumed flow cannot recover on its own: the LATE arrival
+	// time, as unix seconds. Empty everywhere else.
+	Arg string
 }
 
 // String renders a custom_id. Never encode the invoking user: the interaction payload
@@ -78,7 +90,13 @@ func (c CustomID) String() string {
 	}
 
 	parts := []string{prefix, strconv.Itoa(version), string(c.Action), eventID}
-	if c.CharacterID != "" {
+	switch {
+	case c.Action == ActionPick:
+		parts = append(parts, string(c.Then))
+		if c.Arg != "" {
+			parts = append(parts, c.Arg)
+		}
+	case c.CharacterID != "":
 		parts = append(parts, c.CharacterID)
 	}
 
@@ -109,6 +127,15 @@ func ParseCustomID(raw string) (CustomID, error) {
 	id := CustomID{Action: Action(parts[2]), EventID: parts[3]}
 	if id.EventID == noEvent {
 		id.EventID = ""
+	}
+	if id.Action == ActionPick {
+		if len(parts) > 4 {
+			id.Then = Action(parts[4])
+		}
+		if len(parts) > 5 {
+			id.Arg = parts[5]
+		}
+		return id, nil
 	}
 	if len(parts) > 4 {
 		id.CharacterID = parts[4]

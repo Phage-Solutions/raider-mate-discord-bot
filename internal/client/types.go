@@ -79,30 +79,36 @@ type RoleChoice struct {
 // Character is a registered character. Synced reports whether the worker has filled in
 // the Raider.IO fields yet; on a fresh registration everything below Region is nil.
 type Character struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Realm      string   `json:"realm"`
-	Region     string   `json:"region"`
-	Class      *string  `json:"class,omitempty"`
-	Spec       *string  `json:"spec,omitempty"`
-	Ilvl       *float64 `json:"ilvl,omitempty"`
-	MplusScore *float64 `json:"mplus_score,omitempty"`
-	IsMain     bool     `json:"is_main"`
-	Synced     bool     `json:"synced"`
-	Links      Links    `json:"_links"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Realm string `json:"realm"`
+	// RaiderIOURL is the character's page on Raider.IO. Empty against a service older
+	// than 0.2.0, so read it as "link if you have one" rather than as always present.
+	RaiderIOURL string   `json:"raiderio_url,omitempty"`
+	Region      string   `json:"region"`
+	Class       *string  `json:"class,omitempty"`
+	Spec        *string  `json:"spec,omitempty"`
+	Ilvl        *float64 `json:"ilvl,omitempty"`
+	MplusScore  *float64 `json:"mplus_score,omitempty"`
+	IsMain      bool     `json:"is_main"`
+	Synced      bool     `json:"synced"`
+	Links       Links    `json:"_links"`
 }
 
 // CharacterSummary is a character as it appears inside a signup row or a comp slot:
 // enough to draw the line, including the role menu the flex marker is built from.
 type CharacterSummary struct {
-	ID     string       `json:"id"`
-	Name   string       `json:"name"`
-	Realm  string       `json:"realm"`
-	Class  *string      `json:"class,omitempty"`
-	Spec   *string      `json:"spec,omitempty"`
-	Ilvl   *float64     `json:"ilvl,omitempty"`
-	Roles  []RoleChoice `json:"roles"`
-	IsMain bool         `json:"is_main"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Realm string `json:"realm"`
+	// RaiderIOURL is what makes a roster name clickable. The summary carries no region,
+	// so this is the only way to reach the character's page without a second request.
+	RaiderIOURL string       `json:"raiderio_url,omitempty"`
+	Class       *string      `json:"class,omitempty"`
+	Spec        *string      `json:"spec,omitempty"`
+	Ilvl        *float64     `json:"ilvl,omitempty"`
+	Roles       []RoleChoice `json:"roles"`
+	IsMain      bool         `json:"is_main"`
 }
 
 // CompTemplate is how many of each the raid wants. Every field is optional and the

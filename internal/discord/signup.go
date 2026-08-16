@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 
@@ -27,18 +30,16 @@ func (b *Bot) onComponent(ctx context.Context, i *discordgo.InteractionCreate) {
 	switch id.Action {
 	case ActionSignup:
 		b.startSignup(ctx, i, id.EventID)
-	case ActionTentative:
-		b.setStatus(ctx, i, id.EventID, client.StatusTentative)
-	case ActionDecline:
-		b.setStatus(ctx, i, id.EventID, client.StatusDeclined)
-	case ActionAbsent:
-		b.setStatus(ctx, i, id.EventID, client.StatusAbsent)
+	case ActionTentative, ActionDecline, ActionAbsent:
+		b.setStatus(ctx, i, id.EventID, id.Action)
 	case ActionLate:
 		b.openLateModal(ctx, i, id.EventID)
 	case ActionWithdraw:
 		b.withdraw(ctx, i, id.EventID)
 	case ActionRoles:
 		b.submitRoles(ctx, i, id.EventID, id.CharacterID)
+	case ActionPick:
+		b.characterPicked(ctx, i, id)
 	case ActionAddCharacter:
 		b.openCharacterModalFor(ctx, i, id.EventID)
 	case ActionEventMentions:
@@ -130,7 +131,20 @@ func (b *Bot) submitLate(ctx context.Context, i *discordgo.InteractionCreate, ev
 		return
 	}
 
-	result, err := b.api.Signup(ctx, actor, eventID, pickMain(characters).ID,
+	// The picker comes after the modal rather than before it, because a modal cannot be
+	// opened from a deferred interaction and the bot cannot know how many characters a
+	// raider has without asking the service first. The arrival time rides along in the
+	// custom_id, since the pick arrives as a fresh interaction that remembers nothing.
+	character, ok := b.chooseCharacter(ctx, i, characters, eventID, ActionLate,
+		strconv.FormatInt(lateUntil.Unix(), 10))
+	if !ok {
+		return
+	}
+	b.doLate(ctx, i, actor, eventID, character, lateUntil)
+}
+
+func (b *Bot) doLate(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, eventID string, character client.Character, lateUntil time.Time) {
+	result, err := b.api.Signup(ctx, actor, eventID, character.ID,
 		client.WriteSignup{Status: client.StatusLate, LateUntil: &lateUntil})
 	if err != nil {
 		b.fail(ctx, i, "writing signup", err)
@@ -174,10 +188,16 @@ func (b *Bot) startSignup(ctx context.Context, i *discordgo.InteractionCreate, e
 		return
 	}
 
-	// v0.1 signs up the main and does not offer alt selection. A raider with alts and
-	// no main flag gets the first character the service returned.
-	character := pickMain(characters)
+	character, ok := b.chooseCharacter(ctx, i, characters, eventID, ActionSignup, "")
+	if !ok {
+		return
+	}
+	b.doSignup(ctx, i, actor, eventID, character)
+}
 
+// doSignup opens the role select for one character, or signs them up on the spot when
+// their role menu already exists.
+func (b *Bot) doSignup(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, eventID string, character client.Character) {
 	roles, err := b.api.CharacterRoles(ctx, actor, character.ID)
 	if err != nil {
 		b.fail(ctx, i, "reading role menu", err)
@@ -194,7 +214,7 @@ func (b *Bot) startSignup(ctx context.Context, i *discordgo.InteractionCreate, e
 		return
 	}
 
-	prompt := fmt.Sprintf("Signing up **%s**. What can you play?", character.Name)
+	prompt := fmt.Sprintf("Signing up **%s**%s. What can you play?", character.Name, altMarker(character.IsMain))
 	if err := b.edit(i, prompt, roleSelect(eventID, character.ID, nil)); err != nil {
 		b.logger.ErrorContext(ctx, "showing role select", "error", err)
 	}
@@ -244,6 +264,16 @@ func (b *Bot) submitRoles(ctx context.Context, i *discordgo.InteractionCreate, e
 		return
 	}
 
+	// /character roles has no event behind it, and writing a signup against an empty
+	// event id asked the service for a route that cannot exist: the menu saved and the
+	// raider was then shown an error for it.
+	if eventID == "" {
+		if err := b.edit(i, roleMenuConfirmation(roles), nil); err != nil {
+			b.logger.ErrorContext(ctx, "confirming role menu", "error", err)
+		}
+		return
+	}
+
 	result, err := b.api.Signup(ctx, actor, eventID, characterID, client.WriteSignup{Status: client.StatusConfirmed})
 	if err != nil {
 		b.fail(ctx, i, "writing signup", err)
@@ -258,7 +288,7 @@ func (b *Bot) submitRoles(ctx context.Context, i *discordgo.InteractionCreate, e
 
 // setStatus is the one-click path: tentative, decline, and absent need no role menu,
 // since none of them puts anyone in the raid.
-func (b *Bot) setStatus(ctx context.Context, i *discordgo.InteractionCreate, eventID string, status client.SignupStatus) {
+func (b *Bot) setStatus(ctx context.Context, i *discordgo.InteractionCreate, eventID string, action Action) {
 	actor, err := actorFrom(i)
 	if err != nil {
 		b.logger.ErrorContext(ctx, "reading actor", "error", err)
@@ -282,7 +312,28 @@ func (b *Bot) setStatus(ctx context.Context, i *discordgo.InteractionCreate, eve
 		return
 	}
 
-	result, err := b.api.Signup(ctx, actor, eventID, pickMain(characters).ID, client.WriteSignup{Status: status})
+	character, ok := b.chooseCharacter(ctx, i, characters, eventID, action, "")
+	if !ok {
+		return
+	}
+	b.doStatus(ctx, i, actor, eventID, character, statusFor(action))
+}
+
+// statusFor is the status behind a one-click answer. The action is what the picker
+// carries, since a custom_id routes on actions and not on service enum values.
+func statusFor(action Action) client.SignupStatus {
+	switch action {
+	case ActionTentative:
+		return client.StatusTentative
+	case ActionAbsent:
+		return client.StatusAbsent
+	default:
+		return client.StatusDeclined
+	}
+}
+
+func (b *Bot) doStatus(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, eventID string, character client.Character, status client.SignupStatus) {
+	result, err := b.api.Signup(ctx, actor, eventID, character.ID, client.WriteSignup{Status: status})
 	if err != nil {
 		b.fail(ctx, i, "writing signup", err)
 		return
@@ -319,7 +370,15 @@ func (b *Bot) withdraw(ctx context.Context, i *discordgo.InteractionCreate, even
 		return
 	}
 
-	result, err := b.api.Withdraw(ctx, actor, eventID, pickMain(characters).ID)
+	character, ok := b.chooseCharacter(ctx, i, characters, eventID, ActionWithdraw, "")
+	if !ok {
+		return
+	}
+	b.doWithdraw(ctx, i, actor, eventID, character)
+}
+
+func (b *Bot) doWithdraw(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, eventID string, character client.Character) {
+	result, err := b.api.Withdraw(ctx, actor, eventID, character.ID)
 	if err != nil {
 		b.fail(ctx, i, "withdrawing", err)
 		return
@@ -333,6 +392,16 @@ func (b *Bot) withdraw(ctx context.Context, i *discordgo.InteractionCreate, even
 		b.logger.ErrorContext(ctx, "confirming withdraw", "error", err)
 	}
 	b.embeds.schedule(actor, eventID)
+}
+
+// roleMenuConfirmation is what /character roles says back, where there is no signup to
+// report on and only the menu changed.
+func roleMenuConfirmation(roles []client.RoleChoice) string {
+	names := make([]string, len(roles))
+	for i, rc := range roles {
+		names[i] = roleShortNames[rc.Role]
+	}
+	return "Saved: " + strings.Join(names, "/") + ", best first."
 }
 
 // signupConfirmation is the ephemeral line a raider sees after answering.
@@ -355,13 +424,77 @@ func signupConfirmation(result client.SignupResult, roles []client.RoleChoice) s
 	return "You are in as " + strings.Join(names, "/") + "."
 }
 
-// pickMain chooses which character a raider is answering with. v0.1 does not offer alt
-// selection, so the main is the answer, and the first registration when nobody set one.
-func pickMain(characters []client.Character) client.Character {
-	for _, c := range characters {
-		if c.IsMain {
-			return c
-		}
+// chooseCharacter answers which character a write applies to. One character needs no
+// question, and asking one would cost every raider without alts a click. More than one
+// and only the raider knows, so the picker goes up and this reports false: the caller is
+// done, and the flow resumes in characterPicked when they answer.
+//
+// The caller handles an empty roster before calling, since what to say about it differs
+// per flow.
+func (b *Bot) chooseCharacter(ctx context.Context, i *discordgo.InteractionCreate, characters []client.Character, eventID string, then Action, arg string) (client.Character, bool) {
+	if len(characters) == 1 {
+		return characters[0], true
 	}
-	return characters[0]
+
+	if err := b.edit(i, "Which character?", characterSelect(eventID, then, arg, characters)); err != nil {
+		b.logger.ErrorContext(ctx, "showing character select", "error", err, "then", then)
+	}
+	return client.Character{}, false
+}
+
+// characterPicked resumes whichever flow put the picker up. The character arrives as a
+// select value, which is client-supplied, so it is matched against the raider's own
+// roster rather than trusted: the service would refuse a foreign id anyway, but a 403
+// rendered as "the roster service is having a bad time" is a worse answer than this one.
+func (b *Bot) characterPicked(ctx context.Context, i *discordgo.InteractionCreate, id CustomID) {
+	actor, err := actorFrom(i)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "reading actor", "error", err)
+		return
+	}
+	if err := b.deferEphemeral(i); err != nil {
+		b.logger.ErrorContext(ctx, "deferring character pick", "error", err)
+		return
+	}
+
+	values := i.MessageComponentData().Values
+	if len(values) != 1 {
+		b.logger.WarnContext(ctx, "character pick carried no value", "then", id.Then)
+		return
+	}
+
+	characters, err := b.api.UserCharacters(ctx, actor, actor.DiscordID)
+	if err != nil {
+		b.fail(ctx, i, "listing characters", err)
+		return
+	}
+	idx := slices.IndexFunc(characters, func(c client.Character) bool { return c.ID == values[0] })
+	if idx < 0 {
+		b.editOrLog(ctx, i, "That character is not on your roster anymore.")
+		return
+	}
+	character := characters[idx]
+
+	switch id.Then {
+	case ActionSignup:
+		b.doSignup(ctx, i, actor, id.EventID, character)
+	case ActionTentative, ActionDecline, ActionAbsent:
+		b.doStatus(ctx, i, actor, id.EventID, character, statusFor(id.Then))
+	case ActionWithdraw:
+		b.doWithdraw(ctx, i, actor, id.EventID, character)
+	case ActionLate:
+		unix, convErr := strconv.ParseInt(id.Arg, 10, 64)
+		if convErr != nil {
+			b.logger.WarnContext(ctx, "late pick carried no arrival time", "arg", id.Arg)
+			b.editOrLog(ctx, i, "That one expired. Press Late again.")
+			return
+		}
+		b.doLate(ctx, i, actor, id.EventID, character, time.Unix(unix, 0))
+	case ActionRoles:
+		b.showRoleEdit(ctx, i, actor, character)
+	case ActionSetMain:
+		b.promoteToMain(ctx, i, actor, character)
+	default:
+		b.logger.WarnContext(ctx, "unrouted character pick", "then", id.Then)
+	}
 }

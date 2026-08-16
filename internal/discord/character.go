@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
 )
 
 const (
@@ -85,11 +87,14 @@ func (b *Bot) registerCharacter(ctx context.Context, i *discordgo.InteractionCre
 
 	// Class, spec and ilvl arrive on the service's next Raider.IO sync, so promising
 	// them now would be a lie the embed then has to keep.
-	message := fmt.Sprintf("Registered **%s-%s**. Gear and score fill in shortly.",
-		character.Name, character.Realm)
+	message := fmt.Sprintf("Registered **%s-%s**%s. Gear and score fill in shortly.",
+		character.Name, character.Realm, altMarker(character.IsMain))
 
 	if eventID == "" {
 		message += "\nUse `/character roles` to say what it can play."
+		if !character.IsMain {
+			message += " `/character main` if it should be your main."
+		}
 		if err := b.edit(i, message, nil); err != nil {
 			b.logger.ErrorContext(ctx, "confirming registration", "error", err)
 		}
@@ -127,7 +132,15 @@ func (b *Bot) startRoleEdit(ctx context.Context, i *discordgo.InteractionCreate)
 		return
 	}
 
-	character := pickMain(characters)
+	character, ok := b.chooseCharacter(ctx, i, characters, "", ActionRoles, "")
+	if !ok {
+		return
+	}
+	b.showRoleEdit(ctx, i, actor, character)
+}
+
+// showRoleEdit opens the role menu of one character for editing.
+func (b *Bot) showRoleEdit(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, character client.Character) {
 	roles, err := b.api.CharacterRoles(ctx, actor, character.ID)
 	if err != nil {
 		b.fail(ctx, i, "reading role menu", err)
@@ -137,9 +150,71 @@ func (b *Bot) startRoleEdit(ctx context.Context, i *discordgo.InteractionCreate)
 	// The nudge is not padding. Discord sends nothing when a selection is unchanged, so
 	// a raider who opens this and re-picks the same roles sees no response and
 	// reasonably concludes it is broken.
-	prompt := fmt.Sprintf("What can **%s** play? Best first.\nChange the selection to save; picking the same roles again does nothing.", character.Name)
+	prompt := fmt.Sprintf("What can **%s**%s play? Best first.\nChange the selection to save; picking the same roles again does nothing.",
+		character.Name, altMarker(character.IsMain))
 	if err := b.edit(i, prompt, roleSelect("", character.ID, roles)); err != nil {
 		b.logger.ErrorContext(ctx, "showing role select", "error", err)
+	}
+}
+
+// startMainSwitch is /character main. Only the alts are offered: promoting the character
+// that already holds the flag writes nothing, and Discord sends no interaction at all
+// when a selection does not change, so listing the main would be an option that silently
+// does nothing when picked.
+func (b *Bot) startMainSwitch(ctx context.Context, i *discordgo.InteractionCreate) {
+	actor, err := actorFrom(i)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "reading actor", "error", err)
+		return
+	}
+	if err := b.deferEphemeral(i); err != nil {
+		b.logger.ErrorContext(ctx, "deferring main switch", "error", err)
+		return
+	}
+
+	characters, err := b.api.UserCharacters(ctx, actor, actor.DiscordID)
+	if err != nil {
+		b.fail(ctx, i, "listing characters", err)
+		return
+	}
+	if len(characters) == 0 {
+		b.editOrLog(ctx, i, "Register a character first with `/character add`.")
+		return
+	}
+	if len(characters) == 1 {
+		b.editOrLog(ctx, i, fmt.Sprintf("**%s** is your only character, so it is already your main.", characters[0].Name))
+		return
+	}
+
+	alts := make([]client.Character, 0, len(characters)-1)
+	for _, c := range characters {
+		if !c.IsMain {
+			alts = append(alts, c)
+		}
+	}
+	if len(alts) == 0 {
+		b.editOrLog(ctx, i, "Nothing to switch to.")
+		return
+	}
+
+	if err := b.edit(i, "Which character is your main?", characterSelect("", ActionSetMain, "", alts)); err != nil {
+		b.logger.ErrorContext(ctx, "showing main select", "error", err)
+	}
+}
+
+// promoteToMain moves the main flag. The service demotes the previous main in the same
+// transaction, so there is no second call and no moment where a raider has two mains.
+func (b *Bot) promoteToMain(ctx context.Context, i *discordgo.InteractionCreate, actor client.Actor, character client.Character) {
+	updated, err := b.api.SetCharacterMain(ctx, actor, character.ID, true)
+	if err != nil {
+		b.fail(ctx, i, "setting main", err)
+		return
+	}
+
+	message := fmt.Sprintf("**%s-%s** is your main now. Everything else is an alt.",
+		updated.Name, updated.Realm)
+	if err := b.edit(i, message, nil); err != nil {
+		b.logger.ErrorContext(ctx, "confirming main switch", "error", err)
 	}
 }
 

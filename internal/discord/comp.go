@@ -76,7 +76,7 @@ func renderBoard(board client.Board) string {
 	for _, slot := range board.Slots {
 		name := "unknown raider"
 		if slot.Character != nil {
-			name = slot.Character.Name
+			name = slot.Character.Name + altMarker(slot.Character.IsMain)
 		}
 		seat := roleShortNames[slot.Role]
 		if slot.IsBench {

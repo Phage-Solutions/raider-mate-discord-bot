@@ -33,17 +33,41 @@ func TestCustomIDRoundTripsACharacterAction(t *testing.T) {
 	}
 }
 
+func TestCustomIDRoundTripsAPick(t *testing.T) {
+	for _, want := range []CustomID{
+		{Action: ActionPick, EventID: "0192f3c8-0000-7000-8000-000000000001", Then: ActionSignup},
+		{Action: ActionPick, EventID: "0192f3c8-0000-7000-8000-000000000001", Then: ActionLate, Arg: "1770000000"},
+		{Action: ActionPick, Then: ActionRoles},
+	} {
+		got, err := ParseCustomID(want.String())
+		if err != nil {
+			t.Fatalf("parsing %q: %v", want.String(), err)
+		}
+		if got != want {
+			t.Errorf("parsed = %+v, want %+v", got, want)
+		}
+	}
+}
+
 // Two UUIDs is the longest thing the scheme carries. If it ever stops fitting, the
 // component silently fails to render rather than erroring, so pin it here.
 func TestTheLongestCustomIDFitsDiscordsCap(t *testing.T) {
-	id := CustomID{
-		Action:      ActionRoles,
-		EventID:     "0192f3c8-1111-7222-8333-444455556666",
-		CharacterID: "0192f3c8-1111-7222-8333-444455556667",
-	}.String()
-
-	if len(id) > maxCustomID {
-		t.Errorf("custom_id is %d characters, want at most %d: %q", len(id), maxCustomID, id)
+	for _, id := range []string{
+		CustomID{
+			Action:      ActionRoles,
+			EventID:     "0192f3c8-1111-7222-8333-444455556666",
+			CharacterID: "0192f3c8-1111-7222-8333-444455556667",
+		}.String(),
+		CustomID{
+			Action:  ActionPick,
+			EventID: "0192f3c8-1111-7222-8333-444455556666",
+			Then:    ActionLate,
+			Arg:     "1770000000",
+		}.String(),
+	} {
+		if len(id) > maxCustomID {
+			t.Errorf("custom_id is %d characters, want at most %d: %q", len(id), maxCustomID, id)
+		}
 	}
 }
 

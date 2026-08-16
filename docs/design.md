@@ -43,6 +43,7 @@ below for scope, which differs between development and production.
 | `/comp show <id>` | Any | Show current comp without modifying. |
 | `/character add` | Any | Register a character. Opens a modal. |
 | `/character roles` | Any | Edit which roles a character can play. |
+| `/character main` | Any | Move the main flag to another of your characters. |
 | `/character remove` | Any | Unregister a character. |
 | `/absence` | Any | Declare an absence window. |
 | `/roster` | Any | Summary of guild roster, links to dashboard. |
@@ -317,14 +318,33 @@ back. The role select is now shown only to raiders who have no menu yet, and
 1. User clicks `Sign up`.
 2. Bot defers immediately (ephemeral).
 3. Bot fetches the user's characters and registered roles from the service.
-4. **One character:** ephemeral string select of that character's roles, multi-select,
-   ordered by priority.
-   **Multiple characters:** character select first, then role select.
+4. **One character:** straight to the answer. A raider whose role menu already exists is
+   signed up on the spot; one without a menu yet gets the ephemeral role select,
+   multi-select, ordered by priority.
+   **Multiple characters:** character select first, then the same. The main sorts first
+   and the alts are labelled, since the main is the usual answer.
 5. User confirms. Bot POSTs the signup.
 6. Bot edits the original event message with the updated embed.
 7. Ephemeral confirmation to the user, auto-dismissed.
 
-Target: two clicks for the common case.
+Target: two clicks for the common case, and the character select does not change that:
+it only appears for raiders who own the ambiguity.
+
+Every write that names a character asks the same question the same way. `Tentative`,
+`Late`, `Decline`, `Absent`, `Withdraw`, and `/character roles` all reach the select when
+the raider has more than one character, and all skip it when they have one. A raider
+signed up on an alt has to be able to withdraw that signup, so exempting the one-click
+answers would have left a signup nothing could take back.
+
+`Late` is the exception in ordering. Its modal cannot be opened from a deferred
+interaction and the bot cannot count a raider's characters without asking the service
+first, so the modal comes first and the character select follows it. The arrival time
+rides in the select's `custom_id`, since the pick arrives as a fresh interaction that
+remembers nothing of the modal.
+
+No option in the character select is ticked by default, for the same reason the role
+select is not pre-ticked on the signup path: Discord sends no interaction when a
+selection does not change, so a ticked option is one nobody can choose.
 
 ### 4.2 Signup, first-time user
 
@@ -621,9 +641,11 @@ deliberately absent from this list.
 Everything above is the target. v0.1 is narrower, and this is what is built:
 
 - `/raid create`, `/dungeon create`, `/character add`, `/character roles`,
-  `/config channel`, `/config timezone`, `/config mentions`, `/config banner`, `/help`
+  `/character main`, `/config channel`, `/config timezone`, `/config mentions`,
+  `/config banner`, `/help`
 - Signup, Tentative, Late, Decline, Absent, Withdraw buttons, Late via a modal
 - Multi-role select, ordered by priority, existing picks pre-ticked
+- Character select on every write that names one, for raiders with more than one
 - Event embed with role fields and counts, redrawn on a one-second debounce
 - `/comp show` and `/comp lock` on AUTO comps, with advisories and reasons surfaced
 - Every notification kind delivered from the outbox
@@ -631,5 +653,4 @@ Everything above is the target. v0.1 is narrower, and this is what is built:
 Deferred: `/event edit`, `/event cancel`, `/audit`, `/absence` (the button answers one
 raid; the command would answer a date range across many),
 `/roster`, `/character remove`, waitlist promotion, the late-request approve and reject
-surface, alt selection when a user has multiple characters (v0.1 uses the main), and any
-manual comp editing from Discord.
+surface, and any manual comp editing from Discord.

@@ -12,6 +12,41 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-16
+
+Run `make register` after deploying this one. `/character main` is a new command
+definition, and Discord will not show it until the definitions are published.
+
+### Added
+
+- Raiders with more than one character are asked which one they mean. `/character roles`
+  and every signup control on an event message (Sign up, Tentative, Late, Decline,
+  Absent, Withdraw) now open a character select first. Raiders with a single character
+  see no extra step and answer in the same one click as before. Before this, everything
+  went to the main and an alt could not be reached at all.
+- `/character main` moves the main flag to another of your characters. It lists your
+  alts, and picking one demotes the character that held the flag.
+- Characters that are not your main are marked `[Alt]` wherever their name is shown: the
+  event roster, the bench, the status fields, the comp board, and the bot's own replies.
+- Raider names in the event roster link to their Raider.IO page, in the role columns
+  and on the bench, before and after a comp lock. Only the name is clickable; the item
+  level and the markers after it are not. Needs raider-mate-service 0.2.0 or newer,
+  which is where the link comes from; against an older service the names render plain
+  as they always did.
+
+### Changed
+
+- A roster column fits fewer raiders before it truncates to "and N more". Each link
+  spends around fifty characters of Discord's 1024-character field limit, and the limit
+  did not move.
+
+### Fixed
+
+- `/character roles` reported an error after saving. It wrote the role menu and then
+  tried to sign the raider up for an event that does not exist, since the command has no
+  event behind it. The menu had actually saved both times, which is what made it
+  confusing.
+
 ## [0.1.2] - 2026-08-16
 
 ### Fixed

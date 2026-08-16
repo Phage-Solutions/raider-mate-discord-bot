@@ -22,7 +22,15 @@ var raidNight = time.Date(2026, time.September, 1, 20, 0, 0, 0, time.UTC)
 
 func intp(n int) *int { return &n }
 
+// summary builds a main. Most raiders raid on theirs, and a fixture that was an alt by
+// zero value would put "[Alt]" on every line of both golden files.
 func summary(name string, roles ...client.Role) *client.CharacterSummary {
+	s := altSummary(name, roles...)
+	s.IsMain = true
+	return s
+}
+
+func altSummary(name string, roles ...client.Role) *client.CharacterSummary {
 	choices := make([]client.RoleChoice, len(roles))
 	for i, r := range roles {
 		choices[i] = client.RoleChoice{Role: r, Priority: int16(i + 1)}
@@ -196,6 +204,26 @@ func TestFlexRaidersCarryAMarkerAndSingleRoleRaidersDoNot(t *testing.T) {
 	}
 }
 
+// A raid lead reading a familiar name needs to know when it is not the character they
+// know. The marker rides with the name everywhere the name goes, roster and status
+// fields alike.
+func TestAnAltIsMarkedAndAMainIsNot(t *testing.T) {
+	alt := raiderName(nil, altSummary("Johalic", client.RoleMelee), client.RoleMelee)
+	if alt != "Johalic [Alt]" {
+		t.Errorf("name = %q, want the alt marked", alt)
+	}
+
+	main := raiderName(nil, summary("Joharian", client.RoleMelee), client.RoleMelee)
+	if main != "Joharian" {
+		t.Errorf("name = %q, want a main unmarked", main)
+	}
+
+	late := lateName(client.Signup{Character: altSummary("Johalic"), Status: client.StatusTentative})
+	if late != "Johalic [Alt]" {
+		t.Errorf("late name = %q, want the alt marked there too", late)
+	}
+}
+
 // The label has to flip after a comp lock moves someone. Seated as melee with tank
 // ranked first, the useful fact is that they are off-spec and main tank, and an
 // unlabelled "tank" said neither.
@@ -232,7 +260,11 @@ func TestALongRosterTruncatesToACountInsideTheFieldCap(t *testing.T) {
 	signups := make([]client.Signup, 0, 40)
 	for i := range 40 {
 		name := "Verylongraidername" + string(rune('A'+i%26)) + string(rune('a'+i/26))
-		signups = append(signups, signup(name, client.StatusConfirmed, client.RoleRanged, client.RoleMelee))
+		s := signup(name, client.StatusConfirmed, client.RoleRanged, client.RoleMelee)
+		// With a Raider.IO link every line carries its URL too, which is the worst case
+		// the cap has to survive now.
+		s.Character.RaiderIOURL = "https://raider.io/characters/eu/argent-dawn/" + name
+		signups = append(signups, s)
 	}
 
 	embed := BuildEventEmbed(EventView{
@@ -415,6 +447,28 @@ func TestItemLevelAppearsOnlyOnceSynced(t *testing.T) {
 	}
 	if got := raiderName(nil, summary("Freshling", client.RoleTank), client.RoleTank); got != "Freshling" {
 		t.Errorf("name = %q, want no gear level before the sync has run", got)
+	}
+}
+
+// A roster name links to the character's Raider.IO page, and only the name does: the
+// gear level after it is not part of what a raider clicks.
+func TestARaiderNameLinksToTheirRaiderIOPage(t *testing.T) {
+	ilvl := 639.4
+	linked := summary("Danthrax", client.RoleTank)
+	linked.Ilvl = &ilvl
+	linked.RaiderIOURL = "https://raider.io/characters/eu/argent-dawn/Danthrax"
+
+	want := "[Danthrax](https://raider.io/characters/eu/argent-dawn/Danthrax) `639`"
+	if got := raiderName(nil, linked, client.RoleTank); got != want {
+		t.Errorf("name = %q, want %q", got, want)
+	}
+}
+
+// The service only started sending the URL in 0.2.0, and hard rule 5 says a field is
+// read rather than assumed. An older service must render the roster it always did.
+func TestARaiderWithNoRaiderIOURLRendersAsAPlainName(t *testing.T) {
+	if got := raiderName(nil, summary("Grimwall", client.RoleTank), client.RoleTank); got != "Grimwall" {
+		t.Errorf("name = %q, want a plain name and no empty link", got)
 	}
 }
 

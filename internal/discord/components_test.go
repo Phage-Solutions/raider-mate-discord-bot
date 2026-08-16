@@ -1,9 +1,12 @@
 package discord
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/bwmarrin/discordgo"
+
+	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
 )
 
 // Discord caps a row at five and refuses the whole message rather than the extra
@@ -43,6 +46,78 @@ func TestEventButtonsStayInsideTheRowCapAndOfferEveryAnswer(t *testing.T) {
 			t.Errorf("actions = %v, want %q offered", actions, want)
 		}
 	}
+}
+
+func TestCharacterSelectPutsTheMainFirstAndMarksTheAlts(t *testing.T) {
+	menu := selectMenuIn(t, characterSelect("e1", ActionSignup, "", []client.Character{
+		{ID: "c2", Name: "Zanther", Realm: "Draenor"},
+		{ID: "c1", Name: "Joharian", Realm: "Draenor", IsMain: true},
+		{ID: "c3", Name: "Johalic", Realm: "Silvermoon"},
+	}))
+
+	want := []string{"Joharian-Draenor", "Johalic-Silvermoon", "Zanther-Draenor"}
+	for i, label := range want {
+		if menu.Options[i].Label != label {
+			t.Errorf("option %d = %q, want %q", i, menu.Options[i].Label, label)
+		}
+	}
+	if menu.Options[0].Description != "Main" {
+		t.Errorf("main description = %q, want %q", menu.Options[0].Description, "Main")
+	}
+	if menu.Options[1].Description != "Alt" {
+		t.Errorf("alt description = %q, want %q", menu.Options[1].Description, "Alt")
+	}
+
+	// A ticked option cannot be picked: Discord sends no interaction when a selection
+	// does not change, which is the trap roleSelect documents.
+	for _, option := range menu.Options {
+		if option.Default {
+			t.Errorf("option %q is ticked by default, so picking it sends nothing", option.Label)
+		}
+	}
+
+	id, err := ParseCustomID(menu.CustomID)
+	if err != nil {
+		t.Fatalf("parsing %q: %v", menu.CustomID, err)
+	}
+	if id.Action != ActionPick || id.Then != ActionSignup || id.EventID != "e1" {
+		t.Errorf("parsed = %+v, want a pick carrying the signup it resumes", id)
+	}
+}
+
+// A raider with more alts than Discord will render loses the tail of the list. Losing
+// the main out of it would break the common case for the sake of the rare one.
+func TestCharacterSelectTruncatesToTheOptionCapKeepingTheMain(t *testing.T) {
+	characters := make([]client.Character, 0, maxSelectOptions+5)
+	for i := range maxSelectOptions + 5 {
+		characters = append(characters, client.Character{
+			ID:    fmt.Sprintf("c%02d", i),
+			Name:  fmt.Sprintf("Alt%02d", i),
+			Realm: "Draenor",
+		})
+	}
+	characters = append(characters, client.Character{ID: "main", Name: "Zzzmain", Realm: "Draenor", IsMain: true})
+
+	menu := selectMenuIn(t, characterSelect("", ActionRoles, "", characters))
+	if len(menu.Options) != maxSelectOptions {
+		t.Fatalf("options = %d, want %d", len(menu.Options), maxSelectOptions)
+	}
+	if menu.Options[0].Value != "main" {
+		t.Errorf("first option = %q, want the main", menu.Options[0].Value)
+	}
+}
+
+func selectMenuIn(t *testing.T, components []discordgo.MessageComponent) discordgo.SelectMenu {
+	t.Helper()
+	row, ok := components[0].(discordgo.ActionsRow)
+	if !ok {
+		t.Fatalf("component = %T, want an ActionsRow", components[0])
+	}
+	menu, ok := row.Components[0].(discordgo.SelectMenu)
+	if !ok {
+		t.Fatalf("component = %T, want a SelectMenu", row.Components[0])
+	}
+	return menu
 }
 
 // The button opens a modal; it never writes LATE itself, because the status is only
