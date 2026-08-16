@@ -40,17 +40,32 @@ func (b *Bot) pollNotifications(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-wake:
-			b.deliverPending(ctx)
+			b.deliverBatch(ctx)
 		case <-ticker.C:
-			b.deliverPending(ctx)
+			b.deliverBatch(ctx)
 		}
 	}
+}
+
+// deliverBatch is deliverPending with a recover around it. The recover is per drain
+// rather than around the loop on purpose: a notification the bot cannot render is one
+// bad row, and ending the loop over it would stop every later reminder while leaving a
+// bot that still answers commands, which looks like nothing is wrong. The claim on the
+// batch lapses after five minutes and the next tick picks it up again.
+func (b *Bot) deliverBatch(ctx context.Context) {
+	defer b.recoverPanic(ctx, "notification delivery")
+	b.deliverPending(ctx)
 }
 
 // streamNotifications keeps the outbox stream open, waking the delivery loop on every
 // event. The wake is a non-blocking send into a channel of one: a burst that lands while
 // a batch is being sent collapses into the single drain that follows it.
 func (b *Bot) streamNotifications(ctx context.Context, wake chan<- struct{}) {
+	// Losing this goroutine is survivable in a way that losing the process is not: the
+	// ticker in pollNotifications is where the bot was before the stream existed, so a
+	// panic here costs latency on reminders and nothing else.
+	defer b.recoverPanic(ctx, "notification stream")
+
 	for {
 		err := b.api.StreamNotifications(ctx, func() {
 			select {

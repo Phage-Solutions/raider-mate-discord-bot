@@ -12,6 +12,21 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+### Fixed
+
+- A panic in an interaction handler no longer kills the bot. discordgo dispatches each
+  handler in its own goroutine, so any nil dereference below `onInteraction` unwound
+  past `main` and ended the process; the image is distroless, so nothing restarted it
+  in place, and the runtime's trace went to stderr as plain text rather than through
+  the JSON logger, which is why a crash like that left nothing in the log stream. The
+  panic is now logged with its stack, and the raider gets a reply instead of a spinner
+  that expires.
+- A panic while delivering a notification no longer ends the delivery loop or the
+  process. The recover is per drain, so one row the bot cannot render costs that batch
+  and not every reminder after it; the claim lapses and the next tick retries. A panic
+  in the outbox stream drops the bot back to its ticker, where it was before the stream
+  existed.
+
 ## [0.1.1] - 2026-08-16
 
 ### Added

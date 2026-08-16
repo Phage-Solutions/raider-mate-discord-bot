@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -91,6 +92,42 @@ func (b *Bot) Stop() {
 	}
 }
 
+// recoverPanic turns a panic into a logged error instead of a dead process. discordgo
+// dispatches every handler in its own goroutine, so without this one nil dereference
+// anywhere below takes the whole bot with it: the runtime unwinds past main, and the
+// image is distroless, so there is no shell and no supervisor to notice. The trace also
+// goes to stderr as plain text rather than through the logger, which is why a crash
+// like that leaves nothing behind in a JSON log stream.
+//
+// what names the goroutine. A stack says where it broke, not which loop stopped.
+func (b *Bot) recoverPanic(ctx context.Context, what string) {
+	rec := recover()
+	if rec == nil {
+		return
+	}
+	b.logger.ErrorContext(ctx, "recovered panic", "in", what, "panic", rec, "stack", string(debug.Stack()))
+}
+
+// recoverInteraction is recoverPanic for the one goroutine with a raider waiting on the
+// other end. A deferred interaction shows "thinking" until something edits it, so a
+// panic that says nothing leaves them watching a spinner until it expires.
+func (b *Bot) recoverInteraction(ctx context.Context, i *discordgo.InteractionCreate) {
+	rec := recover()
+	if rec == nil {
+		return
+	}
+	b.logger.ErrorContext(ctx, "recovered panic", "in", "interaction", "panic", rec, "stack", string(debug.Stack()))
+
+	// Whether the handler got as far as deferring decides which of these two works, and
+	// a recover cannot know how far it got, so try the deferred case and fall back.
+	const sorry = "Something broke on our side. It has been logged."
+	if err := b.edit(i, sorry, nil); err != nil {
+		if err := b.replyEphemeral(i, sorry); err != nil {
+			b.logger.ErrorContext(ctx, "reporting panic to discord", "error", err)
+		}
+	}
+}
+
 // onInteraction is the single entry point Discord calls. It routes and does nothing
 // else, so the logic worth testing sits in the functions it calls.
 func (b *Bot) onInteraction(_ *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -98,6 +135,9 @@ func (b *Bot) onInteraction(_ *discordgo.Session, i *discordgo.InteractionCreate
 	// to be edited afterwards, so this is the outer bound on anything below.
 	ctx, cancel := context.WithTimeout(context.Background(), 14*time.Minute)
 	defer cancel()
+
+	// After cancel, so the apology is written before the context it uses is cancelled.
+	defer b.recoverInteraction(ctx, i)
 
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
