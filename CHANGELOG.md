@@ -12,6 +12,8 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-08-16
+
 ### Added
 
 - `/raid create` and `/dungeon create` take a `reminder` option: how many minutes before
