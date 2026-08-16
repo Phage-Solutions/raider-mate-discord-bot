@@ -11,8 +11,17 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// UploadIcons publishes every PNG in dir as an application emoji named after its file,
-// so warrior.png becomes :warrior: and mage_frost.png becomes :mage_frost:.
+// emojiMIME maps a supported file extension to the MIME type Discord's emoji data URI
+// expects. Discord's upload endpoint also takes JPEG, GIF and AVIF; only the formats
+// this repo's icons actually ship in are wired up here.
+var emojiMIME = map[string]string{
+	".png":  "image/png",
+	".webp": "image/webp",
+}
+
+// UploadIcons publishes every PNG or WebP in dir as an application emoji named after
+// its file, so warrior.png becomes :warrior: and mage_frost.webp becomes
+// :mage_frost:.
 //
 // Application emoji belong to the app rather than a guild, so one upload covers every
 // server the bot is in, and a self-hoster running their own application uploads their
@@ -45,7 +54,12 @@ func (b *Bot) UploadIcons(ctx context.Context, dir string) error {
 
 	var uploaded int
 	for _, entry := range entries {
-		if entry.IsDir() || !strings.EqualFold(filepath.Ext(entry.Name()), ".png") {
+		if entry.IsDir() {
+			continue
+		}
+		ext := strings.ToLower(filepath.Ext(entry.Name()))
+		mime, ok := emojiMIME[ext]
+		if !ok {
 			continue
 		}
 
@@ -54,7 +68,7 @@ func (b *Bot) UploadIcons(ctx context.Context, dir string) error {
 			return fmt.Errorf("%s: %w", entry.Name(), err)
 		}
 
-		image, err := dataURI(filepath.Join(dir, entry.Name()))
+		image, err := dataURI(filepath.Join(dir, entry.Name()), mime)
 		if err != nil {
 			return err
 		}
@@ -78,14 +92,14 @@ func (b *Bot) UploadIcons(ctx context.Context, dir string) error {
 	}
 
 	if uploaded == 0 {
-		return fmt.Errorf("no .png files in %s, see the README there for the filenames", dir)
+		return fmt.Errorf("no .png or .webp files in %s, see the README there for the filenames", dir)
 	}
 	b.logger.InfoContext(ctx, "icons uploaded", "count", uploaded)
 	return nil
 }
 
 // dataURI reads an image into the base64 form Discord's emoji endpoint expects.
-func dataURI(path string) (string, error) {
+func dataURI(path, mime string) (string, error) {
 	raw, err := os.ReadFile(path) //nolint:gosec
 	if err != nil {
 		return "", fmt.Errorf("reading %s: %w", path, err)
@@ -96,7 +110,7 @@ func dataURI(path string) (string, error) {
 	if len(raw) > maxEmojiBytes {
 		return "", fmt.Errorf("%s is %dKB, over Discord's 256KB emoji limit", path, len(raw)/1024)
 	}
-	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(raw), nil
+	return "data:" + mime + ";base64," + base64.StdEncoding.EncodeToString(raw), nil
 }
 
 // Discord's rules for an emoji name.

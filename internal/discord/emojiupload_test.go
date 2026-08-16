@@ -1,6 +1,39 @@
 package discord
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestDataURIUsesTheGivenMIMEType(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "warrior.webp")
+	if err := os.WriteFile(path, []byte("not a real image, just bytes"), 0o600); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	uri, err := dataURI(path, emojiMIME[".webp"])
+	if err != nil {
+		t.Fatalf("dataURI: %v", err)
+	}
+	if !strings.HasPrefix(uri, "data:image/webp;base64,") {
+		t.Errorf("uri = %s, want it to start with the webp data URI prefix", uri)
+	}
+}
+
+func TestDataURIRejectsFilesOverTheEmojiLimit(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "warrior.png")
+	if err := os.WriteFile(path, make([]byte, 256*1024+1), 0o600); err != nil {
+		t.Fatalf("writing test file: %v", err)
+	}
+
+	if _, err := dataURI(path, emojiMIME[".png"]); err == nil {
+		t.Error("dataURI accepted a file over 256KB, want it refused")
+	}
+}
 
 func TestEmojiNamesMatchWhatTheIconLookupAsksFor(t *testing.T) {
 	for _, name := range []string{"warrior", "mage_frost", "deathknight_unholy", "hunter_beastmastery"} {

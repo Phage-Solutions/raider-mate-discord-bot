@@ -78,7 +78,7 @@ var roleShortNames = map[client.Role]string{
 func BuildEventEmbed(v EventView) *discordgo.MessageEmbed {
 	embed := &discordgo.MessageEmbed{
 		Title:       v.Event.Title,
-		Description: eventDescription(v.Event),
+		Description: eventDescription(v.Event, signupTally(v.Signups)),
 		Color:       embedColour(v.Event),
 		Fields:      eventFields(v),
 		Footer:      &discordgo.MessageEmbedFooter{Text: footerText(v)},
@@ -92,10 +92,14 @@ func BuildEventEmbed(v EventView) *discordgo.MessageEmbed {
 	return embed
 }
 
+// descriptionDivider sets the tally apart from the dates above and the role fields
+// below, since it is the number a raid lead checks first.
+const descriptionDivider = "───────────────────"
+
 // eventDescription carries the times. They are Discord timestamps rather than
 // formatted strings so that every member reads them in their own zone, which is the
 // whole reason a guild spanning four countries can use one message.
-func eventDescription(event client.Event) string {
+func eventDescription(event client.Event, tally string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "**Starts** %s (%s)", discordTime(event.StartsAt.Unix(), "F"), discordTime(event.StartsAt.Unix(), "R"))
@@ -110,6 +114,8 @@ func eventDescription(event client.Event) string {
 	if event.Difficulty != nil {
 		fmt.Fprintf(&b, "\n**Difficulty** %s", difficultyName(*event.Difficulty))
 	}
+
+	fmt.Fprintf(&b, "\n%s\n**%s**\n%s", descriptionDivider, tally, descriptionDivider)
 
 	return b.String()
 }
@@ -353,9 +359,11 @@ func advisoryField(advisories []client.Advisory) *discordgo.MessageEmbedField {
 	}
 }
 
-func footerText(v EventView) string {
+// signupTally counts signups by status. Confirmed and late share a bucket: a late
+// arrival is still coming, just not on time.
+func signupTally(signups []client.Signup) string {
 	var confirmed, tentative, declined, absent int
-	for _, s := range v.Signups {
+	for _, s := range signups {
 		switch s.Status {
 		case client.StatusConfirmed, client.StatusLate:
 			confirmed++
@@ -380,10 +388,14 @@ func footerText(v EventView) string {
 	if absent > 0 {
 		tally += fmt.Sprintf(", %d absent", absent)
 	}
+	return tally
+}
 
-	// The event id rides in the footer because the comp commands take it as an argument
-	// and there is nowhere else to read it off.
-	return tally + "  |  event " + v.Event.ID
+// footerText carries only the event id: the comp commands take it as an argument and
+// there is nowhere else to read it off. The tally moved to the description, since that
+// is the number a raid lead checks first.
+func footerText(v EventView) string {
+	return "event " + v.Event.ID
 }
 
 // raiderName renders one line of a roster field. A raider who registered more than one

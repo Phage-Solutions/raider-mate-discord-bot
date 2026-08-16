@@ -183,11 +183,11 @@ func TestAnAbsentRaiderGetsTheirOwnFieldAndTally(t *testing.T) {
 		t.Errorf("fields = %+v, want an Absent field", embed.Fields)
 	}
 
-	if !strings.Contains(embed.Footer.Text, "1 absent") {
-		t.Errorf("footer = %q, want the absence counted apart from the decline", embed.Footer.Text)
+	if !strings.Contains(embed.Description, "1 absent") {
+		t.Errorf("description = %q, want the absence counted apart from the decline", embed.Description)
 	}
-	if !strings.Contains(embed.Footer.Text, "1 out") {
-		t.Errorf("footer = %q, want the decline still counted as out", embed.Footer.Text)
+	if !strings.Contains(embed.Description, "1 out") {
+		t.Errorf("description = %q, want the decline still counted as out", embed.Description)
 	}
 }
 

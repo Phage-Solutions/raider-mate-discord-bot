@@ -31,3 +31,4 @@ go.work.sum
 # Class and spec artwork is Blizzard's, not ours, and this is a public repository.
 # Keep the images local and upload them with `make icons`.
 assets/icons/*.png
+assets/icons/*.webp

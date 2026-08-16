@@ -1,10 +1,10 @@
 # Icons
 
-PNGs uploaded as Discord application emoji by `make icons`. Each must be under 256KB,
-which is Discord's emoji limit.
+PNG or WebP files uploaded as Discord application emoji by `make icons`. Each must be
+under 256KB, which is Discord's emoji limit.
 
 The bot looks for a spec icon first and falls back to the class, so uploading only the
-13 class files is a reasonable place to stop. All 39 specs is the complete set.
+13 class files is a reasonable place to stop. All 40 specs is the complete set.
 
 Names are what Raider.IO reports, lowercased with spaces and punctuation removed. The
 class prefix on a spec is not optional: Frost is a Mage and a Death Knight, Holy is a
@@ -14,11 +14,14 @@ Paladin.
 ## Artwork and licensing
 
 This is a public AGPL repository. Blizzard's class and spec icons are their artwork, not
-ours, so think before committing them here: `.gitignore` excludes `*.png` in this
-directory for that reason. Point `make icons` at a local directory, or replace the
-ignore rule if you have art you are entitled to redistribute.
+ours, so think before committing them here: `.gitignore` excludes `*.png` and `*.webp`
+in this directory for that reason. Point `make icons` at a local directory, or replace
+the ignore rule if you have art you are entitled to redistribute.
 
 ## Filenames
+
+`.png` and `.webp` both work; the emoji name is the filename with the extension
+stripped, so `warrior.png` and `warrior.webp` are interchangeable.
 
 ```
 # Death Knight
@@ -31,6 +34,7 @@ deathknight_unholy.png
 demonhunter.png
 demonhunter_havoc.png
 demonhunter_vengeance.png
+demonhunter_devourer.png
 
 # Druid
 druid.png

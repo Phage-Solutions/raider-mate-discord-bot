@@ -12,6 +12,22 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-16
+
+### Added
+
+- `make icons` / `UploadIcons` now accepts `.webp` alongside `.png`. Discord's emoji
+  upload takes JPEG, PNG, GIF, WebP and AVIF; only PNG was wired up before, so a WebP
+  icon set silently uploaded nothing. `.gitignore` now excludes `assets/icons/*.webp`
+  too, for the same reason it already excluded `*.png`.
+
+### Changed
+
+- The event embed now shows the signup tally ("N in, M absent") as a bolded line
+  between two dividers, right under the dates. It used to sit in the small footer text
+  next to the event id, which made it easy to miss when scanning for whether a raid
+  had enough sign-ups.
+
 ## [0.3.0] - 2026-08-16
 
 ### Added
