@@ -52,6 +52,7 @@ below for scope, which differs between development and production.
 | `/config timezone` | Guild admin | The IANA zone raid times are typed in. |
 | `/config mentions` | Guild admin | Which roles a new event message pings. |
 | `/config banner` | Guild admin | Image shown on every event card. |
+| `/config reminder` | Guild admin | Default reminder lead time, and ping or DM. |
 | `/help` | Any | Command reference and dashboard link. |
 
 **Raid lead** means a configurable Discord role, set once per guild. The bot reads the
@@ -419,8 +420,8 @@ already persisted by the time the service answers, so a confirm button would off
 undo something that had happened, which is worse than showing what did. Locking again
 recomputes from scratch, so the fix for a bad board is another lock.
 
-Seated raiders are told their role by `REMINDER_1H`, not at lock time. See open
-question 2.
+Seated raiders are told their role by the `REMINDER_PRE_EVENT` DM, not at lock time,
+and only in a guild whose reminder delivery includes DMs. See open question 2.
 
 **`lock` on a MANUAL comp returns `ErrCompIsManual` and writes nothing.** The bot must
 surface this as a plain sentence, not an error dump: something like "That comp is
@@ -450,14 +451,28 @@ ticker and delivers. It reads no clock and no schedule of its own.
 | Trigger | Recipients | Content |
 |---|---|---|
 | 24h before | Undecided only | Nudge to sign up. Never ping people who already responded. |
-| 1h before | Confirmed roster | Their assigned role, invite reminder. |
+| Lead time before, 30 min by default | Everyone signed up | The event is about to start, and a link to its message. |
 | Signup deadline | Raid lead | Signups locked, comp needs finalising. |
 | Seat given up | Raid lead | A raider left the pool or withdrew after a lock. Names the comps that lost a seat. |
 | 2h before, comp unlocked | Raid lead | Nag. |
 
-All reminders are DMs. **DMs can fail** if the user has them closed; the bot must
-handle this without erroring the whole job, and should tell the raid lead which raiders
-could not be reached.
+**The pre-event reminder is configurable, the rest are not.** `/raid create` and
+`/dungeon create` take a `reminder` option in minutes; an event that names none gets
+`guild_settings.reminder_lead_minutes`, and a guild that has set none gets 30. Zero
+turns it off for that event. `/config reminder` sets the guild default and how it is
+delivered: `PING` the events channel, `DM` each raider, or `BOTH`. A guild that has
+chosen nothing gets a ping, because a DM five minutes before a pull is the one nobody
+sees.
+
+Its recipients are everyone whose signup says they are coming (`CONFIRMED`, `LATE`,
+`TENTATIVE`), whether or not a comp has been locked and whether or not they hold a seat
+in it. A person is one reminder however many alts they signed up on. The ping names
+nobody's role, since the message it links to already shows the comp; the DM still does,
+when the raider holds a seat.
+
+Every reminder except that ping is a DM. **DMs can fail** if the user has them closed;
+the bot must handle this without erroring the whole job, and should tell the raid lead
+which raiders could not be reached.
 
 ---
 
@@ -605,10 +620,11 @@ deliberately absent from this list.
 1. **One bot instance per guild, or shared?** Shared for the hosted instance,
    single-guild for self-hosters. The code should not assume either.
 2. **How does a comp lock DM the seated roster?** It cannot today. A comp slot names a
-   character, and no response exposes the Discord user behind one. `REMINDER_1H` does
-   carry a `discord_id` and does tell each raider their assigned role, so nobody is
-   left uninformed, they hear an hour out rather than at lock. Closing the gap means a
-   `discord_id` on the character summary.
+   character, and no response exposes the Discord user behind one. `REMINDER_PRE_EVENT`
+   does carry a `discord_id`, and its DM does tell each raider their assigned role, so
+   nobody is left uninformed, they hear it at the lead time rather than at lock. A guild
+   on the default `PING` delivery hears nothing per-person at all and reads the comp off
+   the event message. Closing the gap means a `discord_id` on the character summary.
 3. **Should `/character remove` ship?** `DELETE /api/characters/{cid}` exists and the
    client covers it, but the delete cascades to signups, comp slots and snapshots, and
    nothing in Discord says so loudly enough yet.

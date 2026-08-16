@@ -3,8 +3,10 @@ package discord
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
 )
@@ -139,6 +141,124 @@ func TestSignupDeadlineSummarySkipsZeroesAndNamesAbsences(t *testing.T) {
 	}
 	if !strings.Contains(got, "18 confirmed, 2 declined, 3 absent") {
 		t.Errorf("notificationText() = %q, want the non-zero counts only", got)
+	}
+}
+
+// The ping says what is starting and links back to the signup sheet. Repeating the
+// roster would duplicate the message it is linking to.
+func TestPreEventPingLinksTheEventMessage(t *testing.T) {
+	channelID := "222"
+	messageID := "333"
+	got, err := notificationText(client.Notification{
+		Kind:           client.ReminderPreEvent,
+		TargetKind:     client.TargetChannel,
+		DiscordGuildID: "111",
+		ChannelID:      &channelID,
+		Payload: payload(t, client.ReminderPreEventPingPayload{
+			Title:     "Heroic Nerub-ar Palace",
+			StartsAt:  time.Unix(1_800_000_000, 0),
+			MessageID: &messageID,
+		}),
+	})
+	if err != nil {
+		t.Fatalf("notificationText() error = %v", err)
+	}
+	if !strings.Contains(got, "**Heroic Nerub-ar Palace** starts <t:1800000000:R>.") {
+		t.Errorf("notificationText() = %q, want the title and a relative timestamp", got)
+	}
+	if !strings.Contains(got, "[Signup sheet](https://discord.com/channels/111/222/333)") {
+		t.Errorf("notificationText() = %q, want a jump link to the event message", got)
+	}
+}
+
+// An event whose message never went up has nothing to link to. The reminder is still
+// worth sending; a link to a message that does not exist is not.
+func TestPreEventPingWithNoEventMessageOmitsTheLink(t *testing.T) {
+	channelID := "222"
+	got, err := notificationText(client.Notification{
+		Kind:           client.ReminderPreEvent,
+		TargetKind:     client.TargetChannel,
+		DiscordGuildID: "111",
+		ChannelID:      &channelID,
+		Payload: payload(t, client.ReminderPreEventPingPayload{
+			Title:    "Heroic Nerub-ar Palace",
+			StartsAt: time.Unix(1_800_000_000, 0),
+		}),
+	})
+	if err != nil {
+		t.Fatalf("notificationText() error = %v", err)
+	}
+	if strings.Contains(got, "Signup sheet") {
+		t.Errorf("notificationText() = %q, want no link", got)
+	}
+}
+
+func TestPreEventDMNamesTheAssignedRoleWhenThereIsOne(t *testing.T) {
+	tank := client.RoleTank
+	tests := []struct {
+		name string
+		kind client.NotificationKind
+		role *client.Role
+		want string
+	}{
+		{name: "seated", kind: client.ReminderPreEvent, role: &tank, want: "You are on"},
+		{name: "unseated", kind: client.ReminderPreEvent, want: "starts <t:1800000000:R>."},
+		// A service still on the old release queues the old kind. Dropping it would cost
+		// a rollout's worth of reminders.
+		{name: "old kind", kind: client.Reminder1h, role: &tank, want: "You are on"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := notificationText(client.Notification{
+				Kind:       tt.kind,
+				TargetKind: client.TargetUser,
+				Payload: payload(t, client.ReminderPreEventDMPayload{
+					Title:        "Heroic Nerub-ar Palace",
+					StartsAt:     time.Unix(1_800_000_000, 0),
+					AssignedRole: tt.role,
+				}),
+			})
+			if err != nil {
+				t.Fatalf("notificationText() error = %v", err)
+			}
+			if !strings.Contains(got, tt.want) {
+				t.Errorf("notificationText() = %q, want it to contain %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// Discord rejects a send naming more than 100 users outright, so the overflow is
+// counted instead of mentioned: 130 raiders is a reminder for everyone rather than one
+// for nobody.
+func TestUserMentionsCapsAtDiscordsLimit(t *testing.T) {
+	ids := make([]string, 130)
+	for i := range ids {
+		ids[i] = strconv.Itoa(i + 1)
+	}
+
+	prefix, allowed := userMentions(ids)
+
+	if len(allowed) != discordMentionCap {
+		t.Errorf("allowed = %d ids, want %d", len(allowed), discordMentionCap)
+	}
+	if strings.Count(prefix, "<@") != discordMentionCap {
+		t.Errorf("prefix has %d mentions, want %d", strings.Count(prefix, "<@"), discordMentionCap)
+	}
+	if !strings.Contains(prefix, "and 30 more") {
+		t.Errorf("prefix = %q, want the overflow counted", prefix)
+	}
+}
+
+func TestUserMentionsRendersUserSyntaxNotRoleSyntax(t *testing.T) {
+	prefix, allowed := userMentions([]string{"1", "2"})
+
+	if prefix != "<@1> <@2> " {
+		t.Errorf("prefix = %q, want %q", prefix, "<@1> <@2> ")
+	}
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want both ids", allowed)
 	}
 }
 

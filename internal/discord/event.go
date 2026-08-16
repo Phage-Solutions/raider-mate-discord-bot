@@ -68,13 +68,22 @@ func (b *Bot) createEvent(ctx context.Context, i *discordgo.InteractionCreate, e
 		difficulty = &value
 	}
 
+	// Left out stays nil so the service applies the guild's default. Zero is a raid lead
+	// asking for no reminder, which is not the same thing.
+	var reminder *int
+	if raw, ok := named["reminder"]; ok {
+		minutes := int(raw.IntValue())
+		reminder = &minutes
+	}
+
 	event, err := b.api.CreateEvent(ctx, actor, client.CreateEvent{
-		Type:           eventType,
-		Title:          strings.TrimSpace(named["title"].StringValue()),
-		StartsAt:       startsAt,
-		SignupDeadline: deadline,
-		CompTemplate:   templateFrom(named),
-		Difficulty:     difficulty,
+		Type:                eventType,
+		Title:               strings.TrimSpace(named["title"].StringValue()),
+		StartsAt:            startsAt,
+		SignupDeadline:      deadline,
+		CompTemplate:        templateFrom(named),
+		Difficulty:          difficulty,
+		ReminderLeadMinutes: reminder,
 	})
 	if err != nil {
 		b.fail(ctx, i, "creating event", err)

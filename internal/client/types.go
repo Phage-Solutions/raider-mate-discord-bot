@@ -134,7 +134,10 @@ type Event struct {
 	MessageID      *string         `json:"message_id,omitempty"`
 	ChannelID      *string         `json:"channel_id,omitempty"`
 	Difficulty     *Difficulty     `json:"difficulty,omitempty"`
-	Links          Links           `json:"_links"`
+	// ReminderLeadMinutes is what the service resolved, not what was asked for: a create
+	// that named none reads back the guild's default. 0 means no reminder.
+	ReminderLeadMinutes *int  `json:"reminder_lead_minutes,omitempty"`
+	Links               Links `json:"_links"`
 }
 
 // Template decodes the event's comp template. A template that will not parse is the
@@ -223,7 +226,13 @@ type Board struct {
 type NotificationKind string
 
 const (
-	Reminder24h      NotificationKind = "REMINDER_24H"
+	Reminder24h NotificationKind = "REMINDER_24H"
+	// ReminderPreEvent fires a configurable number of minutes before the start, 30 by
+	// default. It reaches everyone signed up, seated or not.
+	ReminderPreEvent NotificationKind = "REMINDER_PRE_EVENT"
+	// Reminder1h is what ReminderPreEvent was called before the lead time became a
+	// setting. Kept for one release so a bot deployed ahead of the service still
+	// delivers what the old service queued; remove it once both are past 0.4.0.
 	Reminder1h       NotificationKind = "REMINDER_1H"
 	SignupDeadline   NotificationKind = "SIGNUP_DEADLINE"
 	CompNag          NotificationKind = "COMP_NAG"
@@ -238,13 +247,16 @@ const (
 )
 
 // NotificationTarget is who receives it: one raider by DM, a channel post mentioning
-// the guild's raid-lead roles, or nobody at all in the case of an edit to a message
-// the bot already posted.
+// the guild's raid-lead roles or a named list of raiders, or nobody at all in the case
+// of an edit to a message the bot already posted.
 type NotificationTarget string
 
 const (
-	TargetUser    NotificationTarget = "USER"
-	TargetRole    NotificationTarget = "ROLE"
+	TargetUser NotificationTarget = "USER"
+	TargetRole NotificationTarget = "ROLE"
+	// TargetChannel is a channel post mentioning the users in DiscordIDs. Separate from
+	// TargetRole because a role and a user render with different mention syntax.
+	TargetChannel NotificationTarget = "CHANNEL"
 	TargetMessage NotificationTarget = "MESSAGE"
 )
 
@@ -258,6 +270,7 @@ type Notification struct {
 	TargetKind     NotificationTarget `json:"target_kind"`
 	DiscordID      *string            `json:"discord_id,omitempty"`
 	RoleIDs        []string           `json:"role_ids,omitempty"`
+	DiscordIDs     []string           `json:"discord_ids,omitempty"`
 	ChannelID      *string            `json:"channel_id,omitempty"`
 	Payload        json.RawMessage    `json:"payload"`
 	Links          Links              `json:"_links"`

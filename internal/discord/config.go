@@ -2,6 +2,7 @@ package discord
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -186,4 +187,62 @@ func (b *Bot) setEventBanner(ctx context.Context, i *discordgo.InteractionCreate
 		return
 	}
 	b.editOrLog(ctx, i, "Event cards will show that image.")
+}
+
+// setReminder sets the guild's default reminder lead time and how it is delivered.
+// Admin only. An event can still name its own lead time; this is what one gets when it
+// does not.
+//
+// Both options are cleared by leaving them out, which returns the guild to 30 minutes
+// as a ping. There is no way to write one and keep the other: the settings resource is
+// a whole-row PUT, and pretending otherwise here would hide it rather than remove it.
+func (b *Bot) setReminder(ctx context.Context, i *discordgo.InteractionCreate, options []*discordgo.ApplicationCommandInteractionDataOption) {
+	actor, current, ok := b.beginConfigChange(ctx, i)
+	if !ok {
+		return
+	}
+
+	var minutes *int
+	var delivery *string
+	for _, option := range options {
+		switch option.Name {
+		case "minutes":
+			value := int(option.IntValue())
+			minutes = &value
+		case "delivery":
+			value := option.StringValue()
+			delivery = &value
+		}
+	}
+
+	current.ReminderLeadMinutes = minutes
+	current.ReminderDelivery = delivery
+	if _, err := b.api.SetGuildSettings(ctx, actor, current); err != nil {
+		b.fail(ctx, i, "setting reminder", err)
+		return
+	}
+
+	b.editOrLog(ctx, i, reminderSummary(minutes, delivery))
+}
+
+func reminderSummary(minutes *int, delivery *string) string {
+	lead := "30 minutes"
+	if minutes != nil {
+		if *minutes == 0 {
+			return "Reminders are off for new events. An event can still ask for one with the `reminder` option."
+		}
+		lead = strconv.Itoa(*minutes) + " minutes"
+	}
+
+	how := "a ping in the events channel"
+	if delivery != nil {
+		switch *delivery {
+		case client.ReminderDeliveryDM:
+			how = "a DM to each of them"
+		case client.ReminderDeliveryBoth:
+			how = "a ping in the events channel and a DM to each of them"
+		}
+	}
+
+	return "Everyone signed up gets " + how + " " + lead + " before an event starts."
 }

@@ -18,11 +18,21 @@ type Reminder24hPayload struct {
 	Deadline time.Time `json:"deadline"`
 }
 
-// Reminder1hPayload tells a seated raider which role they are playing.
-type Reminder1hPayload struct {
+// ReminderPreEventDMPayload reminds one raider the event is about to start, and names
+// the role they are playing when the comp is locked and they hold a seat.
+type ReminderPreEventDMPayload struct {
 	Title        string    `json:"title"`
 	StartsAt     time.Time `json:"starts_at"`
 	AssignedRole *Role     `json:"assigned_role"`
+}
+
+// ReminderPreEventPingPayload is the channel post reminding everyone signed up. Who it
+// mentions rides on the notification's DiscordIDs, not in here.
+type ReminderPreEventPingPayload struct {
+	Title    string    `json:"title"`
+	StartsAt time.Time `json:"starts_at"`
+	// MessageID is the event message to link back to, nil if the bot never posted one.
+	MessageID *string `json:"message_id"`
 }
 
 // SignupDeadlinePayload tells the raid lead signups are closed, with the tally.

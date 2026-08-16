@@ -137,6 +137,12 @@ func (b *Bot) deliver(ctx context.Context, n client.Notification) error {
 			return fmt.Errorf("role notification has no channel")
 		}
 		return b.sendToChannel(ctx, *n.ChannelID, mentions(n.RoleIDs)+content)
+	case client.TargetChannel:
+		if n.ChannelID == nil {
+			return fmt.Errorf("channel notification has no channel")
+		}
+		prefix, allowed := userMentions(n.DiscordIDs)
+		return b.sendMentioning(ctx, *n.ChannelID, prefix+content, allowed)
 	default:
 		return fmt.Errorf("unknown target kind %q", n.TargetKind)
 	}
@@ -173,8 +179,14 @@ func notificationText(n client.Notification) (string, error) {
 		return fmt.Sprintf("**%s** is %s and you have not answered. Signups close %s.",
 			p.Title, discordTime(p.StartsAt.Unix(), "R"), discordTime(p.Deadline.Unix(), "F")), nil
 
-	case client.Reminder1h:
-		p, err := client.DecodePayload[client.Reminder1hPayload](n)
+	// Reminder1h is the pre-event reminder's old name, still delivered so a bot that is
+	// deployed before the service keeps working during the rollout.
+	case client.ReminderPreEvent, client.Reminder1h:
+		if n.TargetKind == client.TargetChannel {
+			return preEventPingText(n)
+		}
+
+		p, err := client.DecodePayload[client.ReminderPreEventDMPayload](n)
 		if err != nil {
 			return "", err
 		}
@@ -261,6 +273,55 @@ func compList(names []string) string {
 	}
 }
 
+// preEventPingText is what the events channel sees. It does not repeat the roster or
+// name anyone's role: the link goes back to the event message, which already shows both
+// and is the thing people have pinned.
+func preEventPingText(n client.Notification) (string, error) {
+	p, err := client.DecodePayload[client.ReminderPreEventPingPayload](n)
+	if err != nil {
+		return "", err
+	}
+
+	text := fmt.Sprintf("**%s** starts %s.", p.Title, discordTime(p.StartsAt.Unix(), "R"))
+	if p.MessageID != nil && n.ChannelID != nil {
+		text += fmt.Sprintf(" [Signup sheet](https://discord.com/channels/%s/%s/%s)",
+			n.DiscordGuildID, *n.ChannelID, *p.MessageID)
+	}
+	return text, nil
+}
+
+// discordMentionCap is Discord's limit on allowed_mentions.users. Thirty raiders is
+// nowhere near it, a guild-wide event could be, and a send over the cap is rejected
+// rather than trimmed.
+const discordMentionCap = 100
+
+// userMentions renders the ping prefix and returns the ids Discord may notify. Past the
+// cap the rest are counted rather than mentioned, since a rejected message reminds
+// nobody at all.
+func userMentions(discordIDs []string) (string, []string) {
+	if len(discordIDs) == 0 {
+		return "", nil
+	}
+
+	allowed := discordIDs
+	overflow := 0
+	if len(allowed) > discordMentionCap {
+		overflow = len(allowed) - discordMentionCap
+		allowed = allowed[:discordMentionCap]
+	}
+
+	parts := make([]string, len(allowed))
+	for i, id := range allowed {
+		parts[i] = "<@" + id + ">"
+	}
+
+	prefix := strings.Join(parts, " ")
+	if overflow > 0 {
+		prefix += " and " + strconv.Itoa(overflow) + " more"
+	}
+	return prefix + " ", allowed
+}
+
 func mentions(roleIDs []string) string {
 	if len(roleIDs) == 0 {
 		return ""
@@ -285,6 +346,19 @@ func (b *Bot) sendDM(ctx context.Context, discordID, content string) error {
 
 func (b *Bot) sendToChannel(ctx context.Context, channelID, content string) error {
 	if _, err := b.session.ChannelMessageSend(channelID, content, discordgo.WithContext(ctx)); err != nil {
+		return fmt.Errorf("posting in %s: %w", channelID, err)
+	}
+	return nil
+}
+
+// sendMentioning posts and names the only users the message may ping, so an event
+// titled "@everyone last chance" cannot widen its own reminder.
+func (b *Bot) sendMentioning(ctx context.Context, channelID, content string, userIDs []string) error {
+	_, err := b.session.ChannelMessageSendComplex(channelID, &discordgo.MessageSend{
+		Content:         content,
+		AllowedMentions: &discordgo.MessageAllowedMentions{Users: userIDs},
+	}, discordgo.WithContext(ctx))
+	if err != nil {
 		return fmt.Errorf("posting in %s: %w", channelID, err)
 	}
 	return nil

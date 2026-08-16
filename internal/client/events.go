@@ -15,6 +15,9 @@ type CreateEvent struct {
 	SignupDeadline time.Time    `json:"signup_deadline"`
 	CompTemplate   CompTemplate `json:"comp_template"`
 	Difficulty     *Difficulty  `json:"difficulty,omitempty"`
+	// ReminderLeadMinutes is how long before the start signups are reminded. Nil leaves
+	// it to the guild's setting; 0 is no reminder at all.
+	ReminderLeadMinutes *int `json:"reminder_lead_minutes,omitempty"`
 }
 
 // CreateEvent creates an event and schedules its reminder jobs. Raid lead only.
@@ -40,17 +43,18 @@ func (c *Client) Event(ctx context.Context, actor Actor, eventID string) (Event,
 	return out, err
 }
 
-// EditEvent is a partial update: nil fields are left alone. Changing StartsAt or
-// SignupDeadline cancels and recomputes the event's scheduled jobs, so a run of
-// reminders never fires against a time that has moved.
+// EditEvent is a partial update: nil fields are left alone. Changing StartsAt,
+// SignupDeadline or ReminderLeadMinutes cancels and recomputes the event's scheduled
+// jobs, so a run of reminders never fires against a time that has moved.
 type EditEvent struct {
-	Title          *string       `json:"title,omitempty"`
-	StartsAt       *time.Time    `json:"starts_at,omitempty"`
-	SignupDeadline *time.Time    `json:"signup_deadline,omitempty"`
-	CompTemplate   *CompTemplate `json:"comp_template,omitempty"`
-	Difficulty     *Difficulty   `json:"difficulty,omitempty"`
-	MessageID      *string       `json:"message_id,omitempty"`
-	ChannelID      *string       `json:"channel_id,omitempty"`
+	Title               *string       `json:"title,omitempty"`
+	StartsAt            *time.Time    `json:"starts_at,omitempty"`
+	SignupDeadline      *time.Time    `json:"signup_deadline,omitempty"`
+	CompTemplate        *CompTemplate `json:"comp_template,omitempty"`
+	Difficulty          *Difficulty   `json:"difficulty,omitempty"`
+	MessageID           *string       `json:"message_id,omitempty"`
+	ChannelID           *string       `json:"channel_id,omitempty"`
+	ReminderLeadMinutes *int          `json:"reminder_lead_minutes,omitempty"`
 }
 
 // EditEvent updates an event. Raid lead only.

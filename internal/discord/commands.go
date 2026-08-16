@@ -19,6 +19,17 @@ var eventOption = &discordgo.ApplicationCommandOption{
 	Required:    true,
 }
 
+// reminderOption is the pre-event reminder lead time both create commands take. Minutes
+// rather than a parsed duration: it is one number, and an integer option validates the
+// range in Discord's client instead of in an error message.
+var reminderOption = &discordgo.ApplicationCommandOption{
+	Name:        "reminder",
+	Description: "Minutes before the start to remind signups. 0 for none, blank for the guild default",
+	Type:        discordgo.ApplicationCommandOptionInteger,
+	MinValue:    ptr(0.0),
+	MaxValue:    1440,
+}
+
 // commands is the slash command surface. Subcommand groups rather than flat commands,
 // so the list stays readable as more arrive.
 //
@@ -91,6 +102,7 @@ var commands = []*discordgo.ApplicationCommand{
 					MinValue:    ptr(0.0),
 					MaxValue:    40,
 				},
+				reminderOption,
 			},
 		}},
 	},
@@ -122,6 +134,7 @@ var commands = []*discordgo.ApplicationCommand{
 					Description: "Defaults to a day before the group, or the start time if that is sooner",
 					Type:        discordgo.ApplicationCommandOptionString,
 				},
+				reminderOption,
 			},
 		}},
 	},
@@ -209,6 +222,28 @@ var commands = []*discordgo.ApplicationCommand{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Required:    false,
 			}},
+		}, {
+			Name:        "reminder",
+			Description: "How and when signups are reminded an event is about to start",
+			Type:        discordgo.ApplicationCommandOptionSubCommand,
+			Options: []*discordgo.ApplicationCommandOption{{
+				Name:        "minutes",
+				Description: "Default minutes before the start. 0 for none. Leave empty for 30",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				MinValue:    ptr(0.0),
+				MaxValue:    1440,
+				Required:    false,
+			}, {
+				Name:        "delivery",
+				Description: "Ping the events channel, DM each raider, or both. Leave empty for a ping",
+				Type:        discordgo.ApplicationCommandOptionString,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{Name: "Ping the events channel", Value: client.ReminderDeliveryPing},
+					{Name: "DM each raider", Value: client.ReminderDeliveryDM},
+					{Name: "Both", Value: client.ReminderDeliveryBoth},
+				},
+				Required: false,
+			}},
 		}},
 	},
 	{
@@ -286,6 +321,8 @@ func (b *Bot) onCommand(ctx context.Context, i *discordgo.InteractionCreate) {
 		b.setEventMentions(ctx, i)
 	case "config banner":
 		b.setEventBanner(ctx, i, data.Options[0].Options)
+	case "config reminder":
+		b.setReminder(ctx, i, data.Options[0].Options)
 	case "help ":
 		b.showHelp(i)
 	default:
@@ -304,7 +341,8 @@ func (b *Bot) showHelp(i *discordgo.InteractionCreate) {
 		"`/comp lock <event id>` runs the assigner. Raid leads only.\n" +
 		"`/config channel` picks where event messages get posted. Server admins only.\n" +
 		"`/config timezone` sets the zone raid times are typed in. Server admins only.\n" +
-		"`/config mentions` picks which roles get pinged by a new event. Server admins only.\n\n" +
+		"`/config mentions` picks which roles get pinged by a new event. Server admins only.\n" +
+		"`/config reminder` sets how long before an event signups are reminded, and whether that is a ping or a DM. Server admins only.\n\n" +
 		"Sign up from the buttons on the event message. If you can play more than one role, say so: " +
 		"that is the whole point, and it is what lets a raid lead find a tank at ten to eight."
 

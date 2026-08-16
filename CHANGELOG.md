@@ -12,6 +12,30 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+### Added
+
+- `/raid create` and `/dungeon create` take a `reminder` option: how many minutes before
+  the start everyone signed up is reminded. Leave it out for the server's default, or
+  pass `0` for no reminder on that event.
+- `/config reminder` sets that default and how the reminder arrives: a ping in the
+  events channel, a DM to each raider, or both. Server admins only. A server that sets
+  nothing gets a ping 30 minutes out.
+
+### Changed
+
+- The reminder before an event now reaches everyone whose signup says they are coming
+  (confirmed, late or tentative), whether or not the comp is locked and whether or not
+  they got a seat in it. It used to reach only the raiders holding a seat, so anyone
+  left out of a locked roster heard nothing. Signing up on several characters is still
+  one reminder.
+- That reminder now goes to the events channel as a ping by default, rather than a DM
+  to each raider. The DM was easy to miss ten minutes before an invite. `/config
+  reminder` puts DMs back, alone or alongside the ping. The ping links the event message
+  instead of naming anyone's role; the DM still names it.
+- Requires a `raider-mate-service` release carrying the `REMINDER_PRE_EVENT` job and the
+  reminder settings. This release still delivers the old `REMINDER_1H` notification, so
+  the bot can be updated first; that fallback goes away in a later release.
+
 ## [0.3.1] - 2026-08-16
 
 ### Added
