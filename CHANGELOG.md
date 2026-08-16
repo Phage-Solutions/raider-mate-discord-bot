@@ -12,6 +12,17 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-16
+
+### Added
+
+- The bot now pushes the guild's Discord channel and role list to the service
+  whenever it changes (channel or role created/renamed/deleted) and on every gateway
+  reconnect, so the dashboard has something to build a picker from for the events
+  channel and the mention roles. No new command and nothing a raider sees: this is
+  bot-to-service only. Requires a `raider-mate-service` release carrying the
+  `discord-channels`/`discord-roles` guild endpoints.
+
 ## [0.2.0] - 2026-08-16
 
 Run `make register` after deploying this one. `/character main` is a new command

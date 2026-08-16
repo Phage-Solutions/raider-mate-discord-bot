@@ -60,6 +60,17 @@ func New(opts Options) (*Bot, error) {
 	bot.embeds = newEmbedUpdater(bot)
 
 	session.AddHandler(bot.onInteraction)
+
+	// Guild channel and role catalog sync. All part of the base GUILDS intent already
+	// requested above, so this needs no privileged intent of its own.
+	session.AddHandler(bot.onGuildCreate)
+	session.AddHandler(bot.onChannelCreate)
+	session.AddHandler(bot.onChannelUpdate)
+	session.AddHandler(bot.onChannelDelete)
+	session.AddHandler(bot.onGuildRoleCreate)
+	session.AddHandler(bot.onGuildRoleUpdate)
+	session.AddHandler(bot.onGuildRoleDelete)
+
 	return bot, nil
 }
 
