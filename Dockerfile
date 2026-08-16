@@ -10,12 +10,16 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY . .
 
+# The release workflow passes the git tag. Left at dev for a local or CI build, which
+# is exactly what an unversioned binary should call itself.
+ARG VERSION=dev
+
 # CGO off because the runtime image has no libc to link against. -trimpath keeps the
 # build directory out of the binary, which is both smaller and one less thing leaked in
 # a panic trace.
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/bot ./cmd/bot
+    CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" -o /out/bot ./cmd/bot
 
 # distroless static carries CA certificates and nothing else: no shell, no package
 # manager, no libc. The bot talks to Discord and to raider-mate-service over TLS and

@@ -16,18 +16,59 @@ import (
 // minutes, so a batch has to be small enough to send inside that.
 const notificationBatch = 50
 
-// pollNotifications drains the service's outbox. The service decides when a reminder
-// is due; the bot only delivers, so nothing here reads a clock or a schedule.
+// streamBackoff is how long the bot waits before redialling a dropped stream. The
+// service restarting is the common case, so this is short enough not to be noticed and
+// long enough not to spin against a service that is down.
+const streamBackoff = 5 * time.Second
+
+// pollNotifications drains the service's outbox. The service decides when a reminder is
+// due; the bot only delivers, so nothing here reads a clock or a schedule.
+//
+// Two things ask for a drain: the stream, which is how the bot hears about a row within
+// the second, and the ticker behind it, which covers a stream that died quietly and
+// claims whose lease lapsed when a delivery crashed. Both go through one loop, so a
+// stream event during a tick cannot start a second batch alongside the first.
 func (b *Bot) pollNotifications(ctx context.Context) {
 	ticker := time.NewTicker(b.pollInterval)
 	defer ticker.Stop()
+
+	wake := make(chan struct{}, 1)
+	go b.streamNotifications(ctx, wake)
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case <-wake:
+			b.deliverPending(ctx)
 		case <-ticker.C:
 			b.deliverPending(ctx)
+		}
+	}
+}
+
+// streamNotifications keeps the outbox stream open, waking the delivery loop on every
+// event. The wake is a non-blocking send into a channel of one: a burst that lands while
+// a batch is being sent collapses into the single drain that follows it.
+func (b *Bot) streamNotifications(ctx context.Context, wake chan<- struct{}) {
+	for {
+		err := b.api.StreamNotifications(ctx, func() {
+			select {
+			case wake <- struct{}{}:
+			default:
+			}
+		})
+		if ctx.Err() != nil {
+			return
+		}
+		// Never fatal. Losing the stream drops the bot back to the ticker, which is
+		// where it was before the stream existed.
+		b.logger.WarnContext(ctx, "notification stream ended", "error", err, "retry_in", streamBackoff)
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(streamBackoff):
 		}
 	}
 }

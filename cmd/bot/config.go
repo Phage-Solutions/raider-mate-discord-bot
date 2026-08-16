@@ -50,7 +50,10 @@ func loadConfig() (Config, error) {
 		devGuildID = id
 	}
 
-	pollInterval := 30 * time.Second
+	// The outbox stream is what makes delivery prompt. This is the fallback behind it,
+	// covering a stream that died quietly and claims whose lease lapsed, so it is rare
+	// on purpose.
+	pollInterval := 5 * time.Minute
 	if raw := os.Getenv("NOTIFICATION_POLL_INTERVAL"); raw != "" {
 		d, err := time.ParseDuration(raw)
 		if err != nil {

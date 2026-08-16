@@ -13,6 +13,10 @@ import (
 	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/discord"
 )
 
+// Set at build time with -X main.version. Unlike a JVM manifest, a Go binary carries
+// no version unless the linker is told one.
+var version = "dev"
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -37,6 +41,9 @@ func run() error {
 	}
 
 	logger := newLogger(cfg.LogLevel)
+	// Before the Discord session opens, so a token or gateway failure still says which
+	// build hit it.
+	logger.Info("starting bot", "version", version)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

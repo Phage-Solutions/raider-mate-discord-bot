@@ -80,4 +80,8 @@ make lint
 make test
 ```
 
+If the change is visible to someone using the bot in Discord or running it, add a line
+under `## [Unreleased]` in `CHANGELOG.md`. That section becomes the release notes when
+the next tag is cut.
+
 Small commits, one concern each.

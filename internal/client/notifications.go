@@ -1,10 +1,13 @@
 package client
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -53,6 +56,45 @@ func (c *Client) ClaimNotifications(ctx context.Context, limit int) ([]Notificat
 	_, err := c.do(ctx, nil, http.MethodGet,
 		"/api/notifications?limit="+strconv.Itoa(limit), nil, &out)
 	return out, err
+}
+
+// StreamNotifications holds the service's Server-Sent Events stream open and calls
+// onEvent every time something lands in the outbox. It blocks until the stream ends or
+// ctx is cancelled, and the caller decides whether to redial.
+//
+// The events carry no data. They say "claim now" and nothing else, so delivery stays on
+// ClaimNotifications with its lease and its ack, and a missed event costs latency rather
+// than a lost reminder, because the poll behind this still runs.
+func (c *Client) StreamNotifications(ctx context.Context, onEvent func()) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/notifications/stream", nil)
+	if err != nil {
+		return fmt.Errorf("building stream request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Accept", "text/event-stream")
+
+	resp, err := c.stream.Do(req)
+	if err != nil {
+		return fmt.Errorf("opening notification stream: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("opening notification stream: unexpected status %d", resp.StatusCode)
+	}
+
+	// The only line worth reading is the event name. Heartbeat comments start with a
+	// colon and the data line is an empty object, so both are read and dropped.
+	scanner := bufio.NewScanner(resp.Body)
+	for scanner.Scan() {
+		if strings.HasPrefix(scanner.Text(), "event:") {
+			onEvent()
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("reading notification stream: %w", err)
+	}
+	return nil
 }
 
 // MarkDelivered acks one notification so it is not sent again.

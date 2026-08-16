@@ -30,6 +30,7 @@ type Client struct {
 	baseURL string
 	apiKey  string
 	http    *http.Client
+	stream  *http.Client
 }
 
 // New builds a Client. baseURL is the service root, with no trailing /api.
@@ -41,6 +42,9 @@ func New(baseURL, apiKey string) *Client {
 		// defers first, so a service call that has not landed in ten is already too
 		// late to be useful.
 		http: &http.Client{Timeout: 10 * time.Second},
+		// The outbox stream stays open for as long as the bot runs, which the timeout
+		// above would cut every ten seconds. Its deadline is the context it is given.
+		stream: &http.Client{},
 	}
 }
 
