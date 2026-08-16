@@ -18,6 +18,10 @@ type Config struct {
 	// leaves it zero and registers globally.
 	DevGuildID   uint64
 	PollInterval time.Duration
+	// HealthAddr is the listen address for the liveness endpoint. The bot itself
+	// accepts no inbound traffic; this exists only because Scaleway's container
+	// health check requires a port to watch.
+	HealthAddr string
 }
 
 func loadConfig() (Config, error) {
@@ -62,6 +66,13 @@ func loadConfig() (Config, error) {
 		pollInterval = d
 	}
 
+	// PORT matches Scaleway's convention: the platform tells the container which port
+	// its health check will hit.
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	return Config{
 		DiscordToken:   token,
 		ServiceBaseURL: baseURL,
@@ -69,5 +80,6 @@ func loadConfig() (Config, error) {
 		LogLevel:       logLevel,
 		DevGuildID:     devGuildID,
 		PollInterval:   pollInterval,
+		HealthAddr:     ":" + port,
 	}, nil
 }

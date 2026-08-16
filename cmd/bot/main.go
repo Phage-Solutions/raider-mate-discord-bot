@@ -74,7 +74,12 @@ func run() error {
 	}
 	defer bot.Stop()
 
-	logger.Info("bot running", "dev_guild_id", cfg.DevGuildID)
+	// Started only once the gateway is open, so a passing health check means the bot
+	// actually reached a running state.
+	health := startHealthServer(cfg.HealthAddr, logger)
+	defer stopHealthServer(context.Background(), health, logger)
+
+	logger.Info("bot running", "dev_guild_id", cfg.DevGuildID, "health_addr", cfg.HealthAddr)
 	<-ctx.Done()
 	// Hand the signals back to the runtime so a second Ctrl-C kills a hung shutdown.
 	stop()

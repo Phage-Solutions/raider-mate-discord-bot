@@ -12,6 +12,14 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-16
+
+### Added
+
+- `GET /healthz` on `PORT` (default `8080`), for platforms whose health check needs a
+  port to watch. The bot takes no other inbound traffic; this answers 200 once the
+  gateway connection is open.
+
 ## [0.1.0] - 2026-08-16
 
 Initial release: raid and dungeon events, multi-role signups, comp lock, and reminder
