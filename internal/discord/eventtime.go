@@ -137,11 +137,12 @@ func parseClock(text string) (clockTime, error) {
 
 // defaultDeadline is when signups close if a raid lead did not say.
 //
-// A day before the raid is the useful answer, since it leaves an evening to chase the
-// undecided. When the raid is sooner than that, closing signups a day early would mean
-// closing them before they opened, so they run until the pull instead.
+// An hour before the pull is the useful answer: people decide late, and a sheet that
+// closes the evening before turns every ordinary change of plan into a late request a
+// raid lead has to sign off. When the raid is sooner than that, closing signups an hour
+// early would mean closing them before they opened, so they run until the pull instead.
 func defaultDeadline(startsAt, now time.Time) time.Time {
-	deadline := startsAt.AddDate(0, 0, -1)
+	deadline := startsAt.Add(-time.Hour)
 	if deadline.Before(now) {
 		return startsAt
 	}

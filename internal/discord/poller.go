@@ -204,14 +204,6 @@ func notificationText(n client.Notification) (string, error) {
 		return fmt.Sprintf("Signups are closed for **%s**. %s. The comp needs finalising.",
 			p.Title, countSummary(p.Counts)), nil
 
-	case client.CompNag:
-		p, err := client.DecodePayload[client.CompNagPayload](n)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("**%s** starts %s and the comp is not locked.",
-			p.Title, discordTime(p.StartsAt.Unix(), "R")), nil
-
 	case client.LateRequestFiled:
 		p, err := client.DecodePayload[client.LateRequestFiledPayload](n)
 		if err != nil {

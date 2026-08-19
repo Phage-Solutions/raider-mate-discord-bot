@@ -41,12 +41,6 @@ type SignupDeadlinePayload struct {
 	Counts map[SignupStatus]int `json:"counts"`
 }
 
-// CompNagPayload fires two hours out when nothing has been locked.
-type CompNagPayload struct {
-	Title    string    `json:"title"`
-	StartsAt time.Time `json:"starts_at"`
-}
-
 // LateRequestFiledPayload tells the raid lead someone wants in after the deadline.
 type LateRequestFiledPayload struct {
 	EventTitle  string       `json:"event_title"`

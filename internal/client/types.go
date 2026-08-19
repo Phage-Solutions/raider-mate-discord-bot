@@ -235,7 +235,6 @@ const (
 	// delivers what the old service queued; remove it once both are past 0.4.0.
 	Reminder1h       NotificationKind = "REMINDER_1H"
 	SignupDeadline   NotificationKind = "SIGNUP_DEADLINE"
-	CompNag          NotificationKind = "COMP_NAG"
 	LateRequestFiled NotificationKind = "LATE_REQUEST_FILED"
 	// RosterUpdated carries no message. A raider's cached gear or score moved, so the
 	// event message is showing stale numbers and needs redrawing.

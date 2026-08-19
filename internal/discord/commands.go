@@ -71,7 +71,7 @@ var commands = []*discordgo.ApplicationCommand{
 				},
 				{
 					Name:        "signups_close",
-					Description: "Defaults to a day before the raid",
+					Description: "Defaults to an hour before the raid",
 					Type:        discordgo.ApplicationCommandOptionString,
 				},
 				{
@@ -131,7 +131,7 @@ var commands = []*discordgo.ApplicationCommand{
 				},
 				{
 					Name:        "signups_close",
-					Description: "Defaults to a day before the group, or the start time if that is sooner",
+					Description: "Defaults to an hour before the group, or the start time if that is sooner",
 					Type:        discordgo.ApplicationCommandOptionString,
 				},
 				reminderOption,

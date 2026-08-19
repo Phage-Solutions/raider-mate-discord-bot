@@ -134,22 +134,22 @@ func TestUnreadableTimesAreReported(t *testing.T) {
 	}
 }
 
-func TestTheDefaultDeadlineIsADayBeforeTheRaid(t *testing.T) {
+func TestTheDefaultDeadlineIsAnHourBeforeTheRaid(t *testing.T) {
 	now := time.Date(2026, time.September, 1, 19, 0, 0, 0, time.UTC)
 	startsAt := time.Date(2026, time.September, 10, 20, 0, 0, 0, time.UTC)
 
 	got := defaultDeadline(startsAt, now)
-	want := time.Date(2026, time.September, 9, 20, 0, 0, 0, time.UTC)
+	want := time.Date(2026, time.September, 10, 19, 0, 0, 0, time.UTC)
 	if !got.Equal(want) {
 		t.Errorf("deadline = %s, want %s", got, want)
 	}
 }
 
-// Closing signups a day before a raid that is three hours away would close them before
-// they opened, so they run until the pull instead.
+// Closing signups an hour before a raid that is half an hour away would close them
+// before they opened, so they run until the pull instead.
 func TestASoonRaidKeepsSignupsOpenUntilItStarts(t *testing.T) {
 	now := time.Date(2026, time.September, 1, 19, 0, 0, 0, time.UTC)
-	startsAt := time.Date(2026, time.September, 1, 22, 0, 0, 0, time.UTC)
+	startsAt := time.Date(2026, time.September, 1, 19, 30, 0, 0, time.UTC)
 
 	if got := defaultDeadline(startsAt, now); !got.Equal(startsAt) {
 		t.Errorf("deadline = %s, want the start time %s", got, startsAt)

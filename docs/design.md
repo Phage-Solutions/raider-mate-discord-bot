@@ -88,7 +88,7 @@ Times are therefore parsed rather than picked, and parsing is deliberately forgi
 `tomorrow 20:00`, `sat 20:00`, `20:00`, `2026-09-01 20:00`, `01.09.2026 20:00`, or any
 of those with an explicit offset. A bare clock time means the next time it comes round.
 Naming today's weekday means next week, since nobody types "saturday" on Saturday
-afternoon to mean a raid that already started. `signups_close` defaults to a day before
+afternoon to mean a raid that already started. `signups_close` defaults to an hour before
 the raid, or to the start time when the raid is sooner than that, because closing
 signups before they opened helps nobody.
 
@@ -236,7 +236,7 @@ failed create loses the event.
 
 Everything downstream follows the channel the message actually landed in, since the bot
 writes it back via `PATCH /api/events/{id}`. Edits go there, and so do the
-`SIGNUP_DEADLINE`, `COMP_NAG` and `LATE_REQUEST_FILED` posts. Changing the setting does
+`SIGNUP_DEADLINE` and `LATE_REQUEST_FILED` posts. Changing the setting does
 not move events that were already posted.
 
 ### Where each field comes from
@@ -454,7 +454,6 @@ ticker and delivers. It reads no clock and no schedule of its own.
 | Lead time before, 30 min by default | Everyone signed up | The event is about to start, and a link to its message. |
 | Signup deadline | Raid lead | Signups locked, comp needs finalising. |
 | Seat given up | Raid lead | A raider left the pool or withdrew after a lock. Names the comps that lost a seat. |
-| 2h before, comp unlocked | Raid lead | Nag. |
 
 **The pre-event reminder is configurable, the rest are not.** `/raid create` and
 `/dungeon create` take a `reminder` option in minutes; an event that names none gets
@@ -604,6 +603,8 @@ needs no read first. There is no `POST /signups`.
 **A signup write past the deadline answers `202` with a late request, not an error.**
 The player is not refused, their write becomes something a raid lead can act on. A
 `DELETE` past the deadline files a request carrying `DECLINED` rather than deleting.
+`LATE` and `ABSENT` are the exception: they are accepted outright until the raid
+starts, since both report what is happening on the night.
 
 **The notification routes take no actor headers.** They sit behind the shared service
 key alone, and one claim spans every guild. Every other route needs

@@ -12,6 +12,20 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+### Changed
+
+- Signups now close an hour before the raid by default, rather than a day. Pass
+  `signups_close` on `/raid create` or `/dungeon create` to set your own.
+- `Late` and `Absent` can be answered right up to the pull, even once signups have
+  closed. Both report what is happening on the night, so they no longer turn into a
+  request a raid lead has to sign off. Needs the raider-mate-service release that
+  carries the same change.
+
+### Removed
+
+- The "comp is not locked" nag two hours before a raid. Locking a comp is optional, so
+  the bot no longer chases raid leads about it.
+
 ## [0.3.2] - 2026-08-16
 
 ### Added
