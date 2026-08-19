@@ -44,7 +44,7 @@ below for scope, which differs between development and production.
 | `/character add` | Any | Register a character. Opens a modal. |
 | `/character roles` | Any | Edit which roles a character can play. |
 | `/character main` | Any | Move the main flag to another of your characters. |
-| `/character remove` | Any | Unregister a character. |
+| `/character remove` | Any | Unregister a character. Confirms first, then cascades. |
 | `/absence` | Any | Declare an absence window. |
 | `/roster` | Any | Summary of guild roster, links to dashboard. |
 | `/audit` | Any | Current iLvl and score summary. Premium adds detail. |
@@ -626,12 +626,12 @@ deliberately absent from this list.
    nobody is left uninformed, they hear it at the lead time rather than at lock. A guild
    on the default `PING` delivery hears nothing per-person at all and reads the comp off
    the event message. Closing the gap means a `discord_id` on the character summary.
-3. **Should `/character remove` ship?** `DELETE /api/characters/{cid}` exists and the
-   client covers it, but the delete cascades to signups, comp slots and snapshots, and
-   nothing in Discord says so loudly enough yet.
 
 **Resolved since the last draft:**
 
+- **Should `/character remove` ship?** Yes, behind a confirm button. The pick names the
+  character and says the signups and comp slots go with it, so the cascade is stated
+  where it happens rather than in a command description nobody reads.
 - **Character identity across guilds.** `users` is unique on
   `(discord_id, discord_guild_id)`, so the same person in two guilds is two user rows
   with their own characters. The bot never needs to reconcile them.
@@ -658,8 +658,8 @@ deliberately absent from this list.
 Everything above is the target. v0.1 is narrower, and this is what is built:
 
 - `/raid create`, `/dungeon create`, `/character add`, `/character roles`,
-  `/character main`, `/config channel`, `/config timezone`, `/config mentions`,
-  `/config banner`, `/help`
+  `/character main`, `/character remove`, `/config channel`, `/config timezone`,
+  `/config mentions`, `/config banner`, `/help`
 - Signup, Tentative, Late, Decline, Absent, Withdraw buttons, Late via a modal
 - Multi-role select, ordered by priority, existing picks pre-ticked
 - Character select on every write that names one, for raiders with more than one
@@ -669,5 +669,5 @@ Everything above is the target. v0.1 is narrower, and this is what is built:
 
 Deferred: `/event edit`, `/event cancel`, `/audit`, `/absence` (the button answers one
 raid; the command would answer a date range across many),
-`/roster`, `/character remove`, waitlist promotion, the late-request approve and reject
-surface, and any manual comp editing from Discord.
+`/roster`, waitlist promotion, the late-request approve and reject surface, and any
+manual comp editing from Discord.

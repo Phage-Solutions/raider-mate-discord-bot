@@ -216,6 +216,21 @@ func addCharacterButton(eventID string) []discordgo.MessageComponent {
 	}
 }
 
+// removeConfirmButton is the second press of /character remove. Danger styled and
+// labelled with the verb rather than "Yes", so a stray click on an old ephemeral
+// message reads as what it does.
+func removeConfirmButton(characterID string) []discordgo.MessageComponent {
+	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Remove it",
+				Style:    discordgo.DangerButton,
+				CustomID: CustomID{Action: ActionRemoveConfirm, CharacterID: characterID}.String(),
+			},
+		}},
+	}
+}
+
 func ptr[T any](v T) *T { return &v }
 
 // mentionRoleSelect is the role picker behind /config mentions. MinValues zero so an

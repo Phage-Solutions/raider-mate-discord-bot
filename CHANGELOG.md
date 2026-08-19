@@ -12,6 +12,13 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-20
+
+### Added
+
+- `/character remove` unregisters a character. It asks for confirmation first, because
+  the character's signups and comp slots go with it and none of it comes back.
+
 ## [0.4.0] - 2026-08-19
 
 ### Changed

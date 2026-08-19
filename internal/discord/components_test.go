@@ -135,3 +135,37 @@ func TestLateButtonAndItsModalUseDifferentActions(t *testing.T) {
 		t.Errorf("parsed = %+v, want the modal action carrying its event", id)
 	}
 }
+
+// The confirm button is the only place the character id survives the round trip from
+// /character remove, since the picker is skipped for a raider with one character.
+func TestRemoveConfirmButtonCarriesTheCharacter(t *testing.T) {
+	rows := removeConfirmButton("0192f3c8-0000-7000-8000-000000000002")
+
+	row, ok := rows[0].(discordgo.ActionsRow)
+	if !ok {
+		t.Fatalf("component is %T, want an actions row", rows[0])
+	}
+	button, ok := row.Components[0].(discordgo.Button)
+	if !ok {
+		t.Fatalf("component is %T, want a button", row.Components[0])
+	}
+	if button.Style != discordgo.DangerButton {
+		t.Errorf("style = %v, want danger on a delete", button.Style)
+	}
+
+	id, err := ParseCustomID(button.CustomID)
+	if err != nil {
+		t.Fatalf("parsing %q: %v", button.CustomID, err)
+	}
+	if id.Action != ActionRemoveConfirm || id.CharacterID != "0192f3c8-0000-7000-8000-000000000002" {
+		t.Errorf("parsed = %+v, want the confirm action carrying its character", id)
+	}
+}
+
+// The pick and the confirm are separate actions on purpose: sharing one would make the
+// picker delete on selection, with no confirmation step at all.
+func TestRemovePickAndConfirmUseDifferentActions(t *testing.T) {
+	if ActionRemove == ActionRemoveConfirm {
+		t.Fatal("the removal picker and its confirm share an action, so picking a character would delete it")
+	}
+}

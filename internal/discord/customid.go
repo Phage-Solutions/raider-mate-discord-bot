@@ -39,6 +39,11 @@ const (
 	ActionPick Action = "pick"
 	// ActionSetMain is /character main coming back from the picker.
 	ActionSetMain Action = "setmain"
+	// ActionRemove is /character remove coming back from the picker. It only asks for
+	// confirmation: the delete cascades to signups and comp slots, so nothing is
+	// written until ActionRemoveConfirm.
+	ActionRemove        Action = "removechar"
+	ActionRemoveConfirm Action = "removeok"
 )
 
 // noEvent stands in for an absent event id. Some flows have no event behind them,

@@ -42,6 +42,8 @@ func (b *Bot) onComponent(ctx context.Context, i *discordgo.InteractionCreate) {
 		b.characterPicked(ctx, i, id)
 	case ActionAddCharacter:
 		b.openCharacterModalFor(ctx, i, id.EventID)
+	case ActionRemoveConfirm:
+		b.removeCharacter(ctx, i, id.CharacterID)
 	case ActionEventMentions:
 		b.submitEventMentions(ctx, i)
 	case ActionCharModal, ActionLateModal:
@@ -494,6 +496,8 @@ func (b *Bot) characterPicked(ctx context.Context, i *discordgo.InteractionCreat
 		b.showRoleEdit(ctx, i, actor, character)
 	case ActionSetMain:
 		b.promoteToMain(ctx, i, actor, character)
+	case ActionRemove:
+		b.confirmRemove(ctx, i, character)
 	default:
 		b.logger.WarnContext(ctx, "unrouted character pick", "then", id.Then)
 	}

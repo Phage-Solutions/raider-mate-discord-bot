@@ -3,6 +3,7 @@ package discord
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -215,6 +216,90 @@ func (b *Bot) promoteToMain(ctx context.Context, i *discordgo.InteractionCreate,
 		updated.Name, updated.Realm)
 	if err := b.edit(i, message, nil); err != nil {
 		b.logger.ErrorContext(ctx, "confirming main switch", "error", err)
+	}
+}
+
+// startCharacterRemove is /character remove. The pick does not delete: the service
+// cascades the delete to signups, comp slots and gear snapshots, so the raider is told
+// that and asked to press a second button.
+func (b *Bot) startCharacterRemove(ctx context.Context, i *discordgo.InteractionCreate) {
+	actor, err := actorFrom(i)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "reading actor", "error", err)
+		return
+	}
+	if err := b.deferEphemeral(i); err != nil {
+		b.logger.ErrorContext(ctx, "deferring character removal", "error", err)
+		return
+	}
+
+	characters, err := b.api.UserCharacters(ctx, actor, actor.DiscordID)
+	if err != nil {
+		b.fail(ctx, i, "listing characters", err)
+		return
+	}
+	if len(characters) == 0 {
+		b.editOrLog(ctx, i, "You have no characters registered.")
+		return
+	}
+
+	character, ok := b.chooseCharacter(ctx, i, characters, "", ActionRemove, "")
+	if !ok {
+		return
+	}
+	b.confirmRemove(ctx, i, character)
+}
+
+// confirmRemove is the second press. Naming the character in the prompt is the point:
+// the picker is skipped entirely for a raider with one character, so this is the only
+// place the cascade gets said out loud.
+func (b *Bot) confirmRemove(ctx context.Context, i *discordgo.InteractionCreate, character client.Character) {
+	prompt := fmt.Sprintf("Remove **%s-%s**%s? Its signups and comp slots go with it, and none of it comes back.",
+		character.Name, character.Realm, altMarker(character.IsMain))
+	if err := b.edit(i, prompt, removeConfirmButton(character.ID)); err != nil {
+		b.logger.ErrorContext(ctx, "showing removal confirmation", "error", err)
+	}
+}
+
+// removeCharacter is the confirm button coming back. The character id rode in on the
+// custom_id, which is client-supplied, so it is matched against the raider's own roster
+// before anything is deleted.
+func (b *Bot) removeCharacter(ctx context.Context, i *discordgo.InteractionCreate, characterID string) {
+	actor, err := actorFrom(i)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "reading actor", "error", err)
+		return
+	}
+	if err := b.deferEphemeral(i); err != nil {
+		b.logger.ErrorContext(ctx, "deferring character removal", "error", err)
+		return
+	}
+
+	characters, err := b.api.UserCharacters(ctx, actor, actor.DiscordID)
+	if err != nil {
+		b.fail(ctx, i, "listing characters", err)
+		return
+	}
+	idx := slices.IndexFunc(characters, func(c client.Character) bool { return c.ID == characterID })
+	if idx < 0 {
+		b.editOrLog(ctx, i, "That character is not on your roster anymore.")
+		return
+	}
+	character := characters[idx]
+
+	if err := b.api.DeleteCharacter(ctx, actor, character.ID); err != nil {
+		b.fail(ctx, i, "removing character", err)
+		return
+	}
+
+	message := fmt.Sprintf("**%s-%s** is gone.", character.Name, character.Realm)
+	// Which character holds the main flag afterwards is the service's business, so
+	// this points at the command rather than claiming an answer.
+	if len(characters) > 1 {
+		message += " Use `/character main` to set which of the rest is your main."
+	}
+	if err := b.edit(i, message, nil); err != nil {
+		b.logger.ErrorContext(ctx, "confirming removal", "error", err)
 	}
 }
 
