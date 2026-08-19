@@ -12,6 +12,8 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-19
+
 ### Changed
 
 - Signups now close an hour before the raid by default, rather than a day. Pass
