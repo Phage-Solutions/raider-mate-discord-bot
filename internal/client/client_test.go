@@ -344,3 +344,36 @@ func TestRecordingAnEventMessageSendsNoActorHeaders(t *testing.T) {
 		}
 	}
 }
+
+// A comp name is a raid lead's to choose and it travels in the URL. Spaces have to
+// survive the trip, and a name carrying a slash must address the comp rather than a
+// path of its own.
+func TestCompNameIsEscapedIntoThePath(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want string
+	}{
+		{name: "main", want: "/api/events/e1/comps/main"},
+		{name: "Main guild comp", want: "/api/events/e1/comps/Main%20guild%20comp"},
+		{name: "prog/farm", want: "/api/events/e1/comps/prog%2Ffarm"},
+		{name: "raid #2", want: "/api/events/e1/comps/raid%20%232"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var asked string
+			c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				asked = r.URL.EscapedPath()
+				writeJSON(t, w, http.StatusOK, map[string]any{
+					"id": "e1", "name": tc.name, "mode": "MANUAL", "slots": []any{},
+					"_links": map[string]any{},
+				})
+			})
+
+			if _, err := c.Comp(context.Background(), testActor(), "e1", tc.name); err != nil {
+				t.Fatalf("reading comp: %v", err)
+			}
+			if asked != tc.want {
+				t.Errorf("path = %q, want %q", asked, tc.want)
+			}
+		})
+	}
+}

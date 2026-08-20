@@ -51,11 +51,12 @@ func run() error {
 	api := client.New(cfg.ServiceBaseURL, cfg.ServiceAPIKey)
 
 	bot, err := discord.New(discord.Options{
-		Token:        cfg.DiscordToken,
-		DevGuildID:   cfg.DevGuildID,
-		PollInterval: cfg.PollInterval,
-		API:          api,
-		Logger:       logger,
+		Token:            cfg.DiscordToken,
+		DevGuildID:       cfg.DevGuildID,
+		PollInterval:     cfg.PollInterval,
+		API:              api,
+		Logger:           logger,
+		DashboardBaseURL: cfg.DashboardBaseURL,
 	})
 	if err != nil {
 		return fmt.Errorf("building bot: %w", err)

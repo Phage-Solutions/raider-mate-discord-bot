@@ -23,6 +23,9 @@ type Options struct {
 	PollInterval time.Duration
 	API          *client.Client
 	Logger       *slog.Logger
+	// DashboardBaseURL puts a link to the event on the event's own message. Empty
+	// leaves the link off, which is the right answer for a guild running no dashboard.
+	DashboardBaseURL string
 }
 
 // Bot is the running Discord connection and everything hanging off it.
@@ -35,7 +38,8 @@ type Bot struct {
 	embeds       *embedUpdater
 	// icons are read once at startup. They change only when someone uploads new
 	// application emoji, which is not something a running bot needs to notice.
-	icons IconSet
+	icons        IconSet
+	dashboardURL string
 }
 
 // New builds a Bot. It opens no connection; Start does that.
@@ -56,6 +60,7 @@ func New(opts Options) (*Bot, error) {
 		logger:       opts.Logger,
 		devGuildID:   opts.DevGuildID,
 		pollInterval: opts.PollInterval,
+		dashboardURL: opts.DashboardBaseURL,
 	}
 	bot.embeds = newEmbedUpdater(bot)
 

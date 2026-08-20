@@ -82,13 +82,23 @@ func (b *Bot) redraw(ctx context.Context, actor client.Actor, eventID string) {
 
 	// A comp that has never been locked does not exist, which is not a failure: it is
 	// the state the embed groups by what raiders can play rather than by seat.
-	board, err := b.api.Comp(ctx, actor, eventID, client.DefaultComp)
-	switch {
-	case err == nil:
-		view.Board = &board
-	case errors.Is(err, client.ErrNotFound):
-	default:
-		b.logger.ErrorContext(ctx, "reading comp for redraw", "error", err, "event_id", eventID)
+	//
+	// The name is resolved, not assumed. A comp renamed from the dashboard fell straight
+	// through the not-found arm below, so every save queued a redraw that then rebuilt
+	// the card without the board it had been queued for, and nothing anywhere said so.
+	name, err := b.boardComp(ctx, actor, eventID)
+	if err != nil {
+		b.logger.ErrorContext(ctx, "listing comps for redraw", "error", err, "event_id", eventID)
+	}
+	if name != "" {
+		board, err := b.api.Comp(ctx, actor, eventID, name)
+		switch {
+		case err == nil:
+			view.Board = &board
+		case errors.Is(err, client.ErrNotFound):
+		default:
+			b.logger.ErrorContext(ctx, "reading comp for redraw", "error", err, "event_id", eventID)
+		}
 	}
 
 	embeds := []*discordgo.MessageEmbed{BuildEventEmbed(view)}
@@ -110,6 +120,9 @@ func (b *Bot) viewFor(event client.Event, signups []client.Signup, board *client
 	view := EventView{Event: event, Signups: signups, Board: board, Icons: b.icons}
 	if settings.EventBannerURL != nil {
 		view.BannerURL = *settings.EventBannerURL
+	}
+	if b.dashboardURL != "" {
+		view.DashboardURL = b.dashboardURL + "/events/" + event.ID
 	}
 	return view
 }

@@ -31,6 +31,9 @@ type EventView struct {
 	Icons IconSet
 	// BannerURL is the guild's event image, shown under the roster. Empty for none.
 	BannerURL string
+	// DashboardURL is this event's own page in the dashboard. Empty when no dashboard is
+	// configured, and the link is then left off rather than guessed at.
+	DashboardURL string
 }
 
 // roleColumns is the order role fields appear in, with the label each gets. Tanks and
@@ -164,10 +167,27 @@ func eventFields(v EventView) []*discordgo.MessageEmbedField {
 		fields = append(fields, advisoryField(v.Board.Advisories))
 	}
 
+	if v.DashboardURL != "" {
+		fields = append(fields, dashboardField(v.DashboardURL))
+	}
+
 	if len(fields) > maxFields {
 		fields = fields[:maxFields]
 	}
 	return fields
+}
+
+// dashboardField is the way out of Discord and into the thing the message cannot do:
+// the whole roster, the gear behind it, and a comp a raid lead can rearrange by hand.
+//
+// Last, and so directly above the footer carrying the event id. A field rather than a
+// line of the description because Discord renders no markdown in a footer and the
+// description is where the times are, which is what a raider opens the message for.
+func dashboardField(url string) *discordgo.MessageEmbedField {
+	return &discordgo.MessageEmbedField{
+		Name:  "Dashboard",
+		Value: "[Open this raid in Raider Mate](" + url + ")",
+	}
 }
 
 // lockedRoleFields reads the comp. Bench lives here too: it is a property of the

@@ -11,6 +11,33 @@ import (
 	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
 )
 
+// boardComp is the comp this event's message speaks for, or "" when the event has none.
+//
+// Resolved rather than assumed. Discord shows one board, but a comp is keyed by name and
+// a raid lead can rename one from the dashboard: asking for a fixed "main" meant a
+// renamed comp vanished from the channel, because the redraw found nothing under that
+// name and quietly rebuilt the card without a board.
+//
+// A preference, not a guess. The name this bot creates wins if it is still there, and
+// otherwise the first the service lists, which orders them by name. An event carrying
+// several hand-built boards is the dashboard's business, and choosing between them here
+// would be this repo deciding something it has no way to decide well.
+func (b *Bot) boardComp(ctx context.Context, actor client.Actor, eventID string) (string, error) {
+	comps, err := b.api.Comps(ctx, actor, eventID)
+	if err != nil {
+		return "", err
+	}
+	for _, comp := range comps {
+		if comp.Name == client.DefaultComp {
+			return comp.Name, nil
+		}
+	}
+	if len(comps) > 0 {
+		return comps[0].Name, nil
+	}
+	return "", nil
+}
+
 // showComp renders the current board without changing anything.
 func (b *Bot) showComp(ctx context.Context, i *discordgo.InteractionCreate, eventID string) {
 	actor, err := actorFrom(i)
@@ -23,7 +50,17 @@ func (b *Bot) showComp(ctx context.Context, i *discordgo.InteractionCreate, even
 		return
 	}
 
-	board, err := b.api.Comp(ctx, actor, eventID, client.DefaultComp)
+	name, err := b.boardComp(ctx, actor, eventID)
+	if err != nil {
+		b.fail(ctx, i, "reading comp", err)
+		return
+	}
+	if name == "" {
+		b.editOrLog(ctx, i, "Nothing locked yet for that event.")
+		return
+	}
+
+	board, err := b.api.Comp(ctx, actor, eventID, name)
 	if errors.Is(err, client.ErrNotFound) {
 		b.editOrLog(ctx, i, "Nothing locked yet for that event.")
 		return
@@ -52,7 +89,18 @@ func (b *Bot) lockComp(ctx context.Context, i *discordgo.InteractionCreate, even
 		return
 	}
 
-	board, err := b.api.LockComp(ctx, actor, eventID, client.DefaultComp)
+	// Re-lock whichever board this event already has, whatever it ended up called.
+	// Falling back to DefaultComp is what creates the first one.
+	name, err := b.boardComp(ctx, actor, eventID)
+	if err != nil {
+		b.fail(ctx, i, "locking comp", err)
+		return
+	}
+	if name == "" {
+		name = client.DefaultComp
+	}
+
+	board, err := b.api.LockComp(ctx, actor, eventID, name)
 	if err != nil {
 		b.fail(ctx, i, "locking comp", err)
 		return

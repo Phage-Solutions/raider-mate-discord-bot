@@ -519,3 +519,37 @@ func TestADungeonEmbedNamesItsTypeAndHasNoDifficulty(t *testing.T) {
 		t.Errorf("description = %q, want no difficulty on a dungeon", description)
 	}
 }
+
+// The dashboard link goes last, so it sits directly above the footer carrying the
+// event id, and it is a field because Discord renders no markdown in a footer.
+func TestDashboardLinkIsTheLastFieldWhenConfigured(t *testing.T) {
+	view := EventView{
+		Event:        testEvent(t, client.CompTemplate{}),
+		DashboardURL: "https://www.raidermate.gg/events/e1",
+	}
+
+	embed := BuildEventEmbed(view)
+
+	if len(embed.Fields) == 0 {
+		t.Fatal("embed has no fields, want the dashboard link among them")
+	}
+	last := embed.Fields[len(embed.Fields)-1]
+	if last.Name != "Dashboard" {
+		t.Errorf("last field = %q, want the dashboard link closest to the footer", last.Name)
+	}
+	if !strings.Contains(last.Value, view.DashboardURL) {
+		t.Errorf("last field value = %q, want it to carry %q", last.Value, view.DashboardURL)
+	}
+}
+
+// A guild self-hosting without a dashboard has nowhere to send anyone, and a link to
+// the hosted instance would send their raiders to a roster that is not theirs.
+func TestNoDashboardLinkWhenNoneIsConfigured(t *testing.T) {
+	embed := BuildEventEmbed(EventView{Event: testEvent(t, client.CompTemplate{})})
+
+	for _, field := range embed.Fields {
+		if field.Name == "Dashboard" {
+			t.Fatal("embed carries a dashboard link, want none when none is configured")
+		}
+	}
+}

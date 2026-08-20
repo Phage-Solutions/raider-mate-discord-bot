@@ -12,6 +12,36 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-20
+
+### Added
+
+- **Event messages carry a link to the event in the dashboard**, last in the embed and
+  so directly above the event id in the footer. It goes to that event's own page, not
+  the front door, because the reason to follow it is this raid: the full roster, the gear
+  behind it, and a comp a raid lead can rearrange by hand.
+
+  Set `DASHBOARD_BASE_URL` to turn it on. There is no default: a guild self-hosting the
+  service keeps its roster somewhere else, and a link to the hosted instance would send
+  their raiders to a guild that is not theirs. Unset, the link is simply left off.
+
+### Fixed
+
+- **A renamed comp disappeared from the event message.** The bot asked for a comp called
+  `main` and nothing else, so a raid lead who renamed one from the dashboard got a card
+  with no composition on it at all. Every save still queued a redraw and the redraw still
+  ran; it just looked up a name that no longer existed and rebuilt the card without a
+  board, without saying so anywhere.
+
+  Which comp the message speaks for is now read from the event's own comp list: `main` if
+  it is still there, otherwise the only comp the event has. `/comp` and `/comp lock`
+  follow the same rule, so locking re-locks the board that exists rather than creating a
+  second one beside it under the old name.
+
+- Comp names are escaped into the request path. Names have been a raid lead's to choose
+  since the dashboard learned to rename them, and one carrying a space, a slash or a hash
+  either failed outright or addressed something else.
+
 ## [0.6.1] - 2026-08-20
 
 ### Changed

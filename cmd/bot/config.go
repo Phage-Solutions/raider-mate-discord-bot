@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,12 @@ type Config struct {
 	// accepts no inbound traffic; this exists only because Scaleway's container
 	// health check requires a port to watch.
 	HealthAddr string
+	// DashboardBaseURL is where this guild's dashboard lives, and it puts a link to the
+	// event on the event's own message. Empty by default and empty is fine: a guild
+	// self-hosting the service without a dashboard has nowhere to send anyone, and
+	// defaulting to the hosted instance would send their raiders somewhere their roster
+	// is not.
+	DashboardBaseURL string
 }
 
 func loadConfig() (Config, error) {
@@ -74,12 +81,13 @@ func loadConfig() (Config, error) {
 	}
 
 	return Config{
-		DiscordToken:   token,
-		ServiceBaseURL: baseURL,
-		ServiceAPIKey:  apiKey,
-		LogLevel:       logLevel,
-		DevGuildID:     devGuildID,
-		PollInterval:   pollInterval,
-		HealthAddr:     ":" + port,
+		DiscordToken:     token,
+		ServiceBaseURL:   baseURL,
+		ServiceAPIKey:    apiKey,
+		LogLevel:         logLevel,
+		DevGuildID:       devGuildID,
+		PollInterval:     pollInterval,
+		HealthAddr:       ":" + port,
+		DashboardBaseURL: strings.TrimRight(os.Getenv("DASHBOARD_BASE_URL"), "/"),
 	}, nil
 }
