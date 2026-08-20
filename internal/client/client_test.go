@@ -309,3 +309,38 @@ func writeJSON(t *testing.T, w http.ResponseWriter, status int, body any) {
 		t.Errorf("encoding test response: %v", err)
 	}
 }
+
+// The poller has nobody to speak as, which is the whole reason this route exists
+// rather than reusing PATCH /api/events/{id}. Sending actor headers would suggest
+// otherwise, and the service would ignore them.
+func TestRecordingAnEventMessageSendsNoActorHeaders(t *testing.T) {
+	var (
+		got    http.Header
+		method string
+		path   string
+		body   recordEventMessage
+	)
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+		got, method, path = r.Header.Clone(), r.Method, r.URL.Path
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decoding body: %v", err)
+		}
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	if err := c.RecordEventMessage(context.Background(), "e1", "555", "777"); err != nil {
+		t.Fatalf("recording event message: %v", err)
+	}
+
+	if method != http.MethodPut || path != "/api/events/e1/message" {
+		t.Errorf("request = %s %s, want PUT /api/events/e1/message", method, path)
+	}
+	if body.ChannelID != "555" || body.MessageID != "777" {
+		t.Errorf("body = %+v, want channel 555 and message 777", body)
+	}
+	for header := range got {
+		if strings.HasPrefix(header, "X-Actor-") {
+			t.Errorf("request carried %s, want no actor headers on a service-key route", header)
+		}
+	}
+}

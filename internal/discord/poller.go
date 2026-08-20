@@ -121,6 +121,13 @@ func (b *Bot) deliver(ctx context.Context, n client.Notification) error {
 		return nil
 	}
 
+	// An announcement is a whole message rather than a line of text, so it is handled
+	// before the target switch: it goes to a channel, but nothing notificationText
+	// writes would be the signup sheet.
+	if n.Kind == client.EventCreated {
+		return b.announce(ctx, n)
+	}
+
 	content, err := notificationText(n)
 	if err != nil {
 		return err

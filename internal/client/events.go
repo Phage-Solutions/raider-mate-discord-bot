@@ -71,6 +71,21 @@ func (c *Client) AttachMessage(ctx context.Context, actor Actor, eventID, channe
 	return c.EditEvent(ctx, actor, eventID, EditEvent{ChannelID: &channelID, MessageID: &messageID})
 }
 
+type recordEventMessage struct {
+	ChannelID string `json:"channel_id"`
+	MessageID string `json:"message_id"`
+}
+
+// RecordEventMessage is AttachMessage for the poller, which has nobody to speak as.
+// A notification arrives off a timer rather than an interaction, so there is no member
+// to read roles from, and the raid-lead check on PATCH /api/events/{id} would refuse
+// it. This route takes the service key alone for exactly that reason.
+func (c *Client) RecordEventMessage(ctx context.Context, eventID, channelID, messageID string) error {
+	_, err := c.do(ctx, nil, http.MethodPut, "/api/events/"+eventID+"/message",
+		recordEventMessage{ChannelID: channelID, MessageID: messageID}, nil)
+	return err
+}
+
 // DeleteEvent cancels an event. Raid lead only.
 func (c *Client) DeleteEvent(ctx context.Context, actor Actor, eventID string) error {
 	_, err := c.do(ctx, &actor, http.MethodDelete, "/api/events/"+eventID, nil, nil)

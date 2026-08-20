@@ -243,6 +243,11 @@ const (
 	// The service takes their slot with the write; the raid lead is told rather than
 	// left to notice a hole (design.md section 4.3).
 	CompSlotDropped NotificationKind = "COMP_SLOT_DROPPED"
+	// EventCreated is an event made somewhere the bot cannot post from, the dashboard
+	// being the one that exists. It carries no message: the bot reads the event back,
+	// posts its signup sheet in the guild's events channel, and tells the service where
+	// it landed.
+	EventCreated NotificationKind = "EVENT_CREATED"
 )
 
 // NotificationTarget is who receives it: one raider by DM, a channel post mentioning

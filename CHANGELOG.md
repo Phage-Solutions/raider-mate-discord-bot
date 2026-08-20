@@ -12,6 +12,17 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-20
+
+### Added
+
+- **Events created in the dashboard get their signup sheet posted here.** The bot picks
+  the new event up from the outbox, posts the same card `/raid create` posts, pings
+  whichever roles the guild configured, and tells the service where it landed. Without
+  that last step the event would have no message for a redraw to edit and no channel for
+  a reminder to speak in. Needs the raider-mate-service release that queues the
+  announcement.
+
 ## [0.5.0] - 2026-08-20
 
 ### Added
