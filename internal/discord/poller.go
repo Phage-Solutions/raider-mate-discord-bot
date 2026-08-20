@@ -117,7 +117,11 @@ func (b *Bot) deliver(ctx context.Context, n client.Notification) error {
 		if err != nil {
 			return err
 		}
-		b.redraw(ctx, actor, n.EventID)
+		// Through the coalescing updater rather than straight to redraw. The outbox has
+		// no coalescing of its own, and the service now queues one of these per signup,
+		// so twenty raiders answering in the same minute would otherwise be twenty
+		// edits of the same message against a per-channel rate limit.
+		b.embeds.schedule(actor, n.EventID)
 		return nil
 	}
 

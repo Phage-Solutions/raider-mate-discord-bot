@@ -12,6 +12,15 @@ Sections are `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`.
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-20
+
+### Changed
+
+- Redraw requests from the service now wait out the same one-second window a button
+  click does, rather than editing the message the moment each one lands. The service has
+  started queueing a redraw per signup, and without this a raid of twenty answering at
+  once would be twenty edits of the same message against a per-channel rate limit.
+
 ## [0.6.0] - 2026-08-20
 
 ### Added
