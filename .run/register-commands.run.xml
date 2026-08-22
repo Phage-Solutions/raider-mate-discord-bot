@@ -3,7 +3,7 @@
     <module name="raider-mate-discord-bot" />
     <working_directory value="$PROJECT_DIR$" />
     <kind value="PACKAGE" />
-    <package value="github.com/Phage-Solutions/raider-mate-discord-bot/cmd/bot" />
+    <package value="github.com/Raider-Mate/raider-mate-discord-bot/cmd/bot" />
     <directory value="$PROJECT_DIR$" />
     <filePath value="$PROJECT_DIR$/cmd/bot/main.go" />
     <parameters value="-register" />

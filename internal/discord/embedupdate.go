@@ -8,7 +8,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
 )
 
 // coalesceWindow is how long a pending redraw waits for the next signup. Twenty people

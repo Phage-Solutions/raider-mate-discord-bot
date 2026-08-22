@@ -1,4 +1,4 @@
-module github.com/Phage-Solutions/raider-mate-discord-bot
+module github.com/Raider-Mate/raider-mate-discord-bot
 
 go 1.26.6
 

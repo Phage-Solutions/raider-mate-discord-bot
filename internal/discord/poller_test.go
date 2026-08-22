@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
 )
 
 func TestServiceActor(t *testing.T) {

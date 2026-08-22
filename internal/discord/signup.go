@@ -11,7 +11,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
 )
 
 func (b *Bot) onComponent(ctx context.Context, i *discordgo.InteractionCreate) {

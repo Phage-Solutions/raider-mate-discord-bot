@@ -6,7 +6,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
 )
 
 // eventButtons are the controls on an event message. All six are available to

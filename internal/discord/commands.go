@@ -7,7 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
 )
 
 // eventOption is the event id argument the comp commands share. A UUID is a poor thing

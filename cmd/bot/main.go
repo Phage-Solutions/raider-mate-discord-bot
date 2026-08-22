@@ -9,8 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/client"
-	"github.com/Phage-Solutions/raider-mate-discord-bot/internal/discord"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/client"
+	"github.com/Raider-Mate/raider-mate-discord-bot/internal/discord"
 )
 
 // Set at build time with -X main.version. Unlike a JVM manifest, a Go binary carries
